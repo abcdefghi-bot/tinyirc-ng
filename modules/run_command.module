@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+execute_command() {
+	local prog=$1 chan=$2 nick=$3 aprog=() line
+	shift 3
+
+	case "$prog" in
+		python) aprog=(python '-c' "$*");;
+		bash) aprog=(eval "$@");;
+		sudo) aprog=(sudo bash -c "eval '$*'");;
+		*) return;;
+	esac
+
+	while read -r line; do
+		privmsg "$chan" "$line"
+	done < <("${aprog[@]}" 2>&1)
+}
+
+{
+## execute py command
+if [[ "${line[3]}" = :\>\>\> ]]; then
+	has_access "${line/:/}" 5 && execute_command python "${line[2]}" "${nick/:/}" ${line[*]:4}
+## execute bash command
+elif [[ "${line[3]}" = :\$ ]]; then
+	has_access "${line/:/}" 5 && execute_command bash "${line[2]}" "${nick/:/}" ${line[@]:4}
+## execute bash command (AS ROOT)
+elif [[ "${line[3]}" = :# ]]; then
+	has_access "${line/:/}" 0 && execute_command sudo "${line[2]}" "${nick/:/}" ${line[@]:4}
+fi
+} &

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+has_message() {
+	if [[ -e "$mydir/data/${config[server]}/tell.db" ]]; then
+		source "$mydir/data/${config[server]}/tell.db"
+	else
+		declare -gA tell
+	fi
+
+	local from ztime message efrom i res lastcheck key
+	local enick; read -r enick _ < <(shasum <<<${1,,})
+	local uname; read -r uname < <(uname)
+	local jticks; read -r jticks < <(date +%s)
+
+	((${#hmsg_database[@]})) || declare -gA hmsg_database
+	lastcheck="${hmsg_database["$1"]}"
+	(( $(( jticks - ${lastcheck:-86400} )) < 300 )) && return 0
+	hmsg_database["$1"]="$jticks"
+
+	local change=0
+	for key in "${!tell[@]}"; do
+		IFS=: read -r _ target _ <<<"$key"
+		[[ $target = "$enick" ]] || continue
+
+		read -r from ticks data <<<"${tell[$key]}"
+		if [[ $uname = Linux ]]; then
+			read -r ticks < <(date -u --date="@$ticks")
+		elif [[ $uname = *BSD ]]; then
+			read -r ticks < <(date -u -r "$ticks")
+		fi
+
+		printf 'PRIVMSG %s :message saved by *%s* on %s:\nPRIVMSG %s :%s\n' "$1" "$from" "$ticks" "$1" "$data"
+		unset tell[$key]
+		change=1
+	done
+	((change)) && declare -p tell > "$mydir/data/${config[server]}/tell.db"
+
+	# clean old entries
+	for i in "${!hmsg_database[@]}"; do
+		(( $(( jticks - i )) > 1200 )) && unset hmsg_database["$i"]
+	done
+}
+
+has_message "${nick/:/}" >&3

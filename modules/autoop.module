@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+IFS=! read -r nick _ <<<"${line[0]/:/}"
+
+if has_access "${line[0]/:/}" 10; then
+	op "${line[2]/:/}" "${nick}"
+elif has_access "${line[0]/:/}" 100; then
+	halfop "${line[2]/:/}" "${nick}"
+elif has_access "${line[0]/:/}" 150; then
+	voice "${line[2]/:/}" "${nick}"
+fi

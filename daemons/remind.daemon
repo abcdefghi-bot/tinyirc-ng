@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+_remindd() {
+	[[ -f $mydir/data/${config[server]}/remind.db ]] || return 0
+	source "$mydir/data/${config[server]}/remind.db"
+	((${#remind[@]})) || return 0
+
+	local udate id ids rows content udate heartbeat date ticks_now rids=() change=0
+	read -r ticks_now < <(date +%s)
+
+	for key in "${!remind[@]}"; do
+		IFS=: read -r timeout ticks _ <<<"$key"
+		((timeout>ticks_now)) && continue
+		read -r chan nick data <<<"${remind[$key]}"
+
+		if [[ $uname = Linux ]]; then
+			read -r ticks < <(date -u --date="@$ticks" +"%Y%m%d")
+		elif [[ $uname = *BSD ]]; then
+			read -r ticks < <(date -u -r "$ticks" +"%Y%m%d")
+		fi
+
+		{
+			action "$chan" "reminder saved by ${nick} on $ticks:"
+			privmsg "$chan" "$data"
+		} >&3
+		unset remind[$key]
+		change=1
+	done
+	((change)) && declare -p remind > "$mydir/data/${config[server]}/remind.db"
+}
+
+{
+while :; do
+	_remindd
+	sleep "${remind_sleep:-5}" || sleep 5
+done
+} &

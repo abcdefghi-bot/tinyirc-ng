@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+((${#topics[@]})) || declare -A topics
+_topicmgr() {
+	case "${line[1]}" in
+		## topic (on join, update)
+		TOPIC|332)
+			((${#topics[@]})) || declare -gA topics
+			if [[ ${line[2]} = \#* ]]; then chan="${line[2]}"
+			else chan="${line[3]}"; fi
+			local topic; IFS=: read -r _ _ topic <<<"$REPLY"
+			topics[$chan]=$topic
+		;;
+	esac
+}
+
+_topicmgr
+

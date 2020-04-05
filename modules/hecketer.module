@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+
+[[ -d $mydir/cobe ]] || mkdir -p "$mydir/cobe"
+
+translate() {
+	#echo "translate:  '$1', '$2'" >&2
+	local engines=(google bing yandex apertium) args=() tr x
+	if [[ ! -d $mydir/translate-shell ]]; then
+		(
+			cd "$mydir" && git clone https://github.com/soimort/translate-shell
+		) || return 1
+	fi
+
+	for x in {0..5}; do
+		args=(-no-warn -show-dictionary -no-ansi -brief -no-theme -no-init -e "${engines[$(( RANDOM % ${#engines[@]}))]}")
+		[[ -z "${config[http_proxy]}" ]] || args+=("--proxy ${config[http_proxy]}")
+		read -r tr < <("${mydir}/translate-shell/translate" "${args[@]}" "$1" "$2" 2>/dev/null) || sleep 1
+		((${#tr})) && { printf '%s\n' "$tr"; return; }
+	done
+}
+
+is_math_question() {
+	[[ $3 =~ [0-9\(\)\ \+/\*^%^-]{3,} ]] || return 1
+	local choices=(
+		around
+		perhaps
+		maybe
+		"i'd say"
+		"is it"
+		"what about"
+		"my maths-fu says"
+		"not less than"
+	)
+	local math_response; read -r math_response < <(printf 'scale=4;%s\n' "${BASH_REMATCH[x]}" | bc)
+	#[[ $math_response =~ [0-9]\.0+ ]] && math_response="${math_response%%.*}"
+	if ((${#math_response})); then
+		printf '%s %s ?\n' "${choices[$((RANDOM%${#choices[@]}))]}" "${math_response}"
+	else
+		return 1
+	fi
+}
+
+ask() {
+	local REPLY search="$2" ticks="${3:-$(date +%s)}"
+	declare -A newcobe
+
+	case "$1" in
+		reddit)
+			local encoded uris uri i; read -r encoded < <(urlencode "$search")
+			local has_changed=0
+			mapfile uris < <(file_get_contents "https://www.reddit.com/search/?q=${encoded}" | tr '"' '\n' | grep '/comments/')
+			((${#uris[@]})) || return 0
+			declare -A known toread
+			declare content echoed=0 backup=()
+
+			while ((${#uris[@]})); do
+				i=$(( RANDOM % ${#uris[@]} ))
+				uri="${uris[$i]}"; uri="${uri/$'\n'/}"
+				[[ $uri = *://* ]] || uri="https://www.reddit.com${uri}"
+				if [[ ! ${known["$uri"]} ]]; then
+					known[$uri]=1
+					read -r suri _ < <(shasum <<<"$uri")
+					suri="reddit${suri}reddit"
+					if [[ -v cobe[$suri] ]]; then
+						((${#cobe[$suri]})) && backup+=("${cobe[$suri]}")
+
+					elif [[ ! $uri = *Ouija* ]] && [[ $uri = https://www.reddit.com* ]]; then
+						toread[$suri]=$uri
+					fi
+				fi
+				unset -v 'uris[i]'; uris=( "${uris[@]}" )
+			done
+
+			local reply=()
+			while ((${#toread[@]})); do
+				read -ra keys <<<"${!toread[@]}"
+				suri="${keys[ $((RANDOM%${#toread[@]}))]}"
+				uri="${toread[$suri]}"
+				unset -v toread[$suri]
+				newcobe["$suri"]=""
+
+				#echo "fetching '$suri' ($uri)" >&2
+				mapfile content < <(file_get_contents "$uri" "$RANDOM")
+
+				if [[ ${content[*]} =~ \"t\":\"[[:blank:]|[:alnum:]|[:punct:]]+\"}\], ]]; then
+					reply=()
+					for ((x=0;x<${#BASH_REMATCH[@]};x++)); do
+						IFS="\"" read -r _ _ _ r _ <<<"${BASH_REMATCH[x]}"
+						reply+=("$r")
+					done
+					read -r reply < <(printf '%b' "${reply[*]}")
+					if [[ $reply =~ [.?!]$ && ${#reply} -lt 300 ]]; then
+						newcobe["${suri}"]="$reply"
+						printf '%s\n' "$reply"
+						echoed=1
+						((RANDOM<RANDOM)) && break
+					fi
+				fi
+				(( $(( $(date +%s) - ticks )) >= "${hecketer[timeout]:-30}")) && break
+			done
+			((${#newcobe[@]})) && declare -p newcobe > "$mydir/cobe/tmp-reddit.$(date +%s).${RANDOM}${RANDOM}"
+			((echoed)) || printf '%s\n' "${backup[@]}"
+		;;
+
+		answers)
+			local content i suri
+			read -r content < <(file_get_contents "https://www.answers.com/Q/${2// /_}" "$RANDOM" | tr '"' '\n' | grep '^\\u003Cp')
+			while read -r content; do
+				mapfile i < <(printf '%b\n' "${content//\\\//\/}" | html2text -nobs -ascii)
+				content="${i[*]}"; content="${content//$'\r'/}"; content="${content//$'\n'/}"
+				if [[ ${cobe[*]} = *"${content}"* ]]; then
+					echo 'answers: reply already known' >&2
+				else
+					read -r suri _ < <(shasum <<< "$content")
+					suri="answer$surianswer"
+					newcobe[$suri]=$content
+				fi
+				printf '%s\n' "$content"
+				printf 'answer-reply(%s): %s\n' "$suri" "$content" >&2
+			done < <(printf '%b' "$content" | tr '\r\n' ' ' | sed 's#<\\/p>#\n#g')
+			((${#newcobe[@]})) && declare -p newcobe > "$mydir/cobe/tmp-answer.$(date +%s).${RANDOM}${RANDOM}"
+		;;
+		*) return;;
+	esac
+}
+
+fetch_answer() {
+	local answers=() ask_choices=(reddit) i choice
+	read -r answer < <(
+		_log "$nick> $1" hcktr
+		while ((${#ask_choices[@]})); do
+			i="$(( RANDOM % ${#ask_choices[@]}))"
+			choice="${ask_choices[$i]}"
+			unset -v ask_choices[$i]
+			ask_choices=( ${ask_choices[@]} )
+			while read -r; do answers+=("$REPLY"); done < <(ask "$choice" "$1" "$ticks")
+		done
+		## return one random reply if doable
+		((${#answers[@]})) && printf '%s\n' "${answers[$(( RANDOM%${#answers[@]}))]}"
+	)
+	((${#answer})) && printf '%s\n' "$answer"
+}
+
+hecketer() {
+	local timeout="${hecketer[timeout]:-30}" ticks q answer
+	read -r ticks < <(date +%s)
+	read -r q <<<"${line[*]:4}"
+
+	## try to extract math operations
+	if read -r answer < <(is_math_question "$@"); then
+		:
+
+	## question ends with int. mark: search for pertinent answer
+	elif [[ $q = *\? ]]; then
+		## translate ?
+		if [[ ${config[translate]:-0} -gt 0 &&  ${config[lang]} != en ]]; then
+			read -r q < <(translate "${config[lang]}:en" "$q")
+		fi
+		local answers=() ask_choices=(reddit answers) i choice
+		read -r answer < <(
+			_log "$nick> $q" hcktr
+			while ((${#ask_choices[@]})); do
+				i="$(( RANDOM % ${#ask_choices[@]}))"
+				choice="${ask_choices[$i]}"
+				while read -r; do answers+=("$REPLY"); done < <(ask "$choice" "$q" "$ticks")
+				unset -v ask_choices[$i]
+				ask_choices=( ${ask_choices[@]} )
+			done
+			## return one random reply if doable
+			((${#answers[@]})) && printf '%s\n' "${answers[$(( RANDOM%${#answers[@]}))]}"
+		)
+	fi
+
+	## fallback to cobe
+	if [[ ${#answer} -eq 0 && ${hecketer[use_cobe]:-0} -gt 0 ]]; then
+		_log "asking '$q'" "cobeia"
+
+		local brains=( cobe/*brain ) tmpfile i choice
+		read -r answer < <(
+			## no brain
+			if [[ $brains = 'cobe/*brain' ]]; then
+				if [[ -e $mydir/cobe/cobe.learn ]]; then source "$mydir/cobe/cobe.learn"
+				else declare -A cobe
+				fi
+
+				read -r ticks < <(date +%s)
+				printf '%s\n' "${cobe[@]}" | grep -v '^$' > "$mydir/cobe/cobe-${ticks}.learn"
+				cobe -b "$mydir/cobe/cobe-${ticks}.brain" init &> /dev/null
+				cobe -b "$mydir/cobe/cobe-${ticks}.brain" learn "$mydir/cobe/cobe-${ticks}.learn" &> /dev/null
+				brains=( cobe/*brain )
+			fi
+
+			read -r tmpfile < <(mktemp)
+			for i in {0..4}; do
+				[[ -e $tmpfile ]] && rm -f "$tmpfile"*
+				choice="${brains[ $(( RANDOM % ${#brains[@]} )) ]}"
+				[[ -e $choice ]] || continue
+				cp "$choice" "$tmpfile"
+
+				read -r answer < <(printf '%s\n' "$q" | cobe -b "$tmpfile" console 2> /dev/null | grep -i '^> [a-z]' | sed 's/^..//')
+
+				((${#answer} && ${#answer} < 384)) || continue
+				[[ $answer = "$1" ]] && continue
+				action "${line[2]}" '.oO( ... thinks ... )'
+				printf '%s\n' "$answer"
+				break
+			done
+			[[ -e $tmpfile ]] && rm -f "$tmpfile"*
+		)
+	fi
+	## send a reply if we got something to send
+	#((${#answer})) || return
+
+	if [[ ${config[translate]:-0} -gt 0 &&  ${config[lang]} != en ]]; then
+		read -r answer < <(translate "en:${config[lang]}" "$answer")
+	fi
+
+	((${#answer})) && privmsg "${line[2]}" "${nick/:/}: $answer"
+}
+
+if [[ "${hecketer[enabled]:-False}" =~ (T|t|Y|y|1) ]]; then
+	if [[ ${line[3]} = :"${mynick}"*  && ! -z ${line[*]:4} ]]; then
+	{
+		((RANDOM>RANDOM)) && cobe_rebuild
+		 hecketer
+	} &
+	fi
+fi

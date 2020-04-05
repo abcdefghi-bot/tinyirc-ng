@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+
+nicklistmgr() {
+	local action=${line[1]} nicklist_dir="$mydir/tmp/${config[server]}/nicklist" chan nicklist
+	[[ -d $nicklist_dir ]] || mkdir -p "$nicklist_dir"
+	local time; read -r time < <(date -u +%s)
+
+	case "$action" in
+		MODE)
+			chan="${line[2]}"
+			[[ -e $nicklist_dir/$chan ]] || return
+			source "$nicklist_dir/$chan"
+			local chars="${line[3]}" item_count=3 char sign i
+			for ((i=0;i<${#chars};i++)); do
+				case "${chars:$i:1}" in
+					\+|\-) sign="${chars:$i:1}";;
+					c|i|m|n|p|s|t|C|M|R)
+						continue
+					;;
+
+					b|j|k|l|E|I|J)
+						((item_count++));
+						continue
+					;;
+
+					*)
+						((item_count++)); nick="${line[$item_count]}"
+						case "${chars:$i:1}" in
+							o) # (de)op
+								if [[ $sign = \+ ]]; then	oplist["$nick"]=$time
+								else unset -v oplist["$nick"]; fi
+							;;
+							h) # (de)halfop
+								if [[ $sign = \+ ]]; then holist["$nick"]=$time
+								else unset -v holist["$nick"]; fi
+							;;
+							v) # (de)voice
+								if [[ $sign = \+ ]]; then volist["$nick"]=$time
+								else unset -v volist["$nick"]; fi
+							;;
+						esac
+					;;
+				esac
+			done
+	;;
+	JOIN)
+		local chan="${line[2]}"
+		[[ $chan = :\#* ]] && chan="${chan/:/}"
+
+		if [[ $nick = "$mynick" ]]; then
+			[[ -e $nicklist_dir/$chan ]] && rm "$nicklist_dir/$chan"
+			declare -A nicklist=() oplist=() holist=() volist=()
+		else
+			[[ -e $nicklist_dir/$chan ]] || return
+			source "$nicklist_dir/$chan"
+			nicklist["$nick"]=$time
+		fi
+	;;
+	KICK)
+		local chan="${line[2]}"
+		[[ -e $nicklist_dir/$chan ]] || return
+		local nick="${line[3]}"
+		[[ $nick = "$mynick" ]] && { rm "$nicklist_dir/$chan"; return; }
+		source "$nicklist_dir/$chan"
+		unset -v nicklist["$nick"]
+		if ((${#nicklist[@]}==1)); then
+			[[ ${oplist[$mynick]} || ${holist[$mynick]} ]] || {
+				cycle "$chan" >&3
+				return
+			}
+		fi
+		unset -v oplist["$nick"] holist["$nick"] volist["$nick"]
+	;;
+
+	PART)
+		local chan="${line[2]}"
+		[[ $chan = :\#* ]] && chan="${chan/:/}"
+
+		[[ -e $nicklist_dir/$chan ]] || return
+
+		## the bot parted the chan, set nicklist as empty
+		if [[ $nick = "$mynick" ]]; then
+			rm "$nicklist_dir/$chan"
+			return
+		fi
+		source "$nicklist_dir/$chan"
+		unset -v nicklist["$nick"]
+		if ((${#nicklist[@]}==1)); then
+			[[ ${oplist[$mynick]} || ${holist[$mynick]} ]] || {
+				cycle "$chan" >&3
+				return
+			}
+		fi
+		unset -v oplist["$nick"] holist["$nick"] volist["$nick"]
+	;;
+	QUIT|NICK)
+		local fp
+
+		for fp in "$nicklist_dir"/*; do
+			chan="${fp##*/}"
+
+			if [[ $chan = :* ]]; then chan="${chan/:/}"
+			elif [[ $chan = \* ]]; then break
+			fi
+			source "$fp"
+
+			if [[ ${line[1]} = NICK ]]; then
+				local newnick="${line[2]}"; newnick="${newnick/:/}"
+				[[ $line = ":${mynick}!"* ]] && {
+					declare -g mynick=$newnick
+					echo "mynewnick: $mynick ($newnick) - (old)nick: $nick" >&2
+				}
+				nicklist["$newnick"]="${nicklist[$nick]}"
+				[[ ${oplist[$nick]} ]] && oplist["$newnick"]="${oplist[$nick]}"
+				[[ ${holist[$nick]} ]] && holist["$newnick"]="${holist[$nick]}"
+				[[ ${volist[$nick]} ]] && volist["$newnick"]="${volist[$nick]}"
+			fi
+
+			unset -v nicklist["$nick"] oplist["$nick"] holist["$nick"] volist["$nick"]
+			declare -p nicklist oplist holist volist > "$fp"
+			if ((${#nicklist[@]}==1)); then
+				[[ ${oplist[$mynick]} || ${holist[$mynick]} ]] || cycle "$chan" >&3 &
+			fi
+		done
+		return
+	;;
+	353)
+		read -r _ _ _ _ chan _ <<<"$REPLY"
+		[[ -e $nicklist_dir/$chan ]] || return
+		source "$nicklist_dir/$chan"
+
+		nicks=(${REPLY##*:})
+		for nick in "${nicks[@]}"; do
+			onick="$nick"
+			nick="${nick/@/}"; nick="${nick/+/}"; nick="${nick/%/}";
+			case "$onick" in
+				\+*)	volist["$nick"]=$time;;
+				\%*)	holist["$nick"]=$time;;
+				\@*)	oplist["$nick"]=$time;;
+			esac
+			nicklist["$nick"]=$time
+		done
+	;;
+	esac
+	[[ $nicklist_dir && $chan ]] || return
+	declare -p nicklist oplist holist volist > "$nicklist_dir/$chan"
+}
+
+nicklistmgr

@@ -1,0 +1,313 @@
+#!/usr/bin/env bash
+#set -o nounset
+
+declare mydir="${0%/*}" running_daemons=()
+[[ "${mydir}" = . ]] && mydir="$PWD"
+[[ -d "$mydir/tmp" ]] || mkdir -p "${mydir}/tmp"
+
+usage() {
+	cat << EOF
+
+	usage:
+
+		${0##*/} -s <server> -p <port> [-n nick] [-P <server pass>] [-j '#chan'] [-z http://proxy:port] [-S int] [-Z timeout] [-v]
+
+		-S		sleep \$S sec(s) before reconnecting
+		-Z		proxy timeout
+		-v		be verbose
+
+EOF
+	exit
+}
+
+_exit() {
+	printf 'QUIT :leaving\n' >&3
+	((${#running_daemons[@]})) && kill -9 "${running_daemons[@]}" &> /dev/null
+}
+
+_irc_login() {
+	# send server password if any
+	[[ ${config[password]:-nil} = nil ]] || printf 'PASS %s\n' "${config[password]}"
+	## send user/nick infos
+	printf 'NICK %s\nUSER %s %s localhost :%s\n' "$1" "${config[ident]}" "${config[server]}" "${config[nick]}"
+}
+
+_connect() {
+	_log 'Connecting...' "${config[server]}"
+	exec 3<> "/dev/tcp/${1}/${2}" || {
+		_log 'ENOCONNECT' "${config[server]}" >&2
+		return 1
+	}
+}
+
+gen_nick() {
+	local n; local nn
+	nn=( $(echo "$1" | grep -Eo '.') )
+	while ((${#nn[@]})); do
+		i=$(( RANDOM % ${#nn[@]}))
+		n+="${nn[i]}"
+		unset nn[i]
+		nn=( ${nn[*]} )
+	done
+	printf '%s\n' "$n"
+}
+
+# main function
+tinyirc() {
+	local var include skip REPLY
+
+	## load includes
+	for i in "${mydir}"/includes/*.inc; do source "$i"; done
+
+	## clean tmp files
+	find "${mydir}/tmp/${config[server]}" -type f -delete
+
+	# create bash tcp connection
+	## through proxy
+	if [[ ${config[http_proxy]} && ${config[irc_use_proxy]:-0} -gt 0 ]]; then
+		local proxy="${config[http_proxy]/http:\/\/}"
+		_connect "${proxy%:*}" "${proxy##*:}" || return
+		## send proxy magics
+		printf 'CONNECT %s:%s HTTP/1.0\n\n' "${config[server]}" "${config[port]}" >&3
+
+	## http direct connect
+	else
+		_connect "${config[server]}" "${config[port]}" || return
+		local rnick="bbot${RANDOM}"
+		_irc_login "$rnick" >&3
+	fi
+
+	# set traps
+	trap "rehash" SIGHUP
+	trap "_exit" SIGINT
+
+	# start background daemons
+	for daemon in "${daemons[@]}"; do
+		var=( "${mydir}"/daemons/*"${daemon}"*.daemon )
+		[[ ${#var[@]} -eq 1 && -e $var ]] && source "$var"
+		running_daemons+=($!)
+	done
+
+	# read until connection closes
+	while read -ru3 -t"${config[timeout]:-300}"; do
+		REPLY="${REPLY/$'\r'/}"
+		((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config['server']}"
+
+		## if going over proxy
+		if ((${#proxy})); then
+			## return if proxy error
+			[[ $REPLY =~ ^HTTP/1.[0-1]\ 200 ]] || return
+
+			local rnick="bbot${RANDOM}"
+			_irc_login "$rnick" >&3
+			unset -v proxy
+
+		## ping/pong
+		elif [[ ${REPLY} = PING* ]]; then
+			printf '%s\n' "${REPLY/I/O}" >&3
+		## resend ping request ?
+		elif [[ ${REPLY} =~ ^:[a-zA-Z0-9_.-]+\ PONG* && ${config[infiniping]:-0} -gt 0 ]]; then
+			{
+				sleep ${config[infiniping]:-5}
+				printf 'PING %s\n' "$RANDOM" >&3
+			} &
+		## parse other input
+		elif [[ $REPLY = :* ]]; then
+			local line nick ident host var mask i chan
+
+			# split line to array
+			read -ra line <<<"$REPLY"
+
+			# extract nick, ident and host
+			IFS=!@ read -r nick ident host <<<"${line/:/}"
+			mask="*!*@${host}"
+
+			## core IRC thing
+			case "${line[1]}" in
+				## antiflood
+				PRIVMSG|NOTICE)
+					if [[ ${line[2]} =~ \# ]]; then
+						if [[ ${config[antiflood]} =~ ^[0-9]{1,}:[0-9]{1,}$ ]] && is_flood "$line" "${line[2]}" ${config[antiflood]//:/ }; then
+							if [[ -f $mydir/tmp/${config[server]}/nicklist/${line[2]} ]]; then
+								source "$mydir/tmp/${config[server]}/nicklist/${line[2]}"
+							else
+								declare -A oplist
+							fi
+
+							if [[ ${oplist[$mynick]} && ! ${oplist[${nick/:/}]} ]]; then
+								ban "${line[2]}" "$mask" "${config[tmpban_duration]:-45}"
+							fi
+							## dont proceed any further flooder's input
+							continue
+						fi
+						[[ ${line[*]:3} =~ \#no(log|op) ]] && continue
+					fi
+				;;
+				396)
+					myhostname=${line[4]}
+				;;
+				INVITE)
+					join "${line[3]}" >&3
+				;;
+				001)	## hello message from server
+					_log "bot connected. nick: '${line[2]}' (real: ${config[nick]})" 'info'
+					((${config[infiniping]:-0})) && printf 'PING %s\n' "$RANDOM" >&3
+				;;
+
+				005)	# parse some server infos
+					declare -gA server_config
+					read -ra array <<<"$REPLY"
+					for i in "${array[@]:3}"; do
+						if [[ $i = :* ]]; then
+							break
+						elif [[ $i = *=* ]]; then
+							IFS=\= read -r item value <<<"$i"
+							server_config[$item]=$value
+						else
+							server_config[$i]=1
+						fi
+					done
+				;;
+
+				376|422) ## end of MOTD, POTD or no MOTD
+					declare -g mynick="${line[2]}"
+
+					{ # send stuff to server
+						# usermodes
+						printf 'MODE %s %s\n' "${line[2]}" "${config[umodes]:-+ixF}"
+						# join chans
+						((${#config[join]})) && printf 'JOIN %s\n' "${config[join]}"
+						[[ $mynick = "${config[nick]}" ]] || printf 'ISON %s\n' "${config[nick]:-bbot}"
+					} >&3
+
+				;;
+				QUIT)	# regain nick
+					if [[ ${line} = :"${config[nick]}"!* ]]; then
+						printf 'NICK %s\n' "${config[nick]}" >&3
+					fi
+				;;
+
+				433) ## nick is already used
+					if [[ ${line[3]} = ${config[nick]} ]]; then
+						printf 'ISON %s\n' "${config[nick]}" >&3
+					fi
+					read -r nn < <(gen_nick "${config[nick]:-bbot}")
+					printf 'NICK %s\n' "${nn}" >&3
+				;;
+				432) # nick too long
+					if [[ ${server_config[NICKLEN]} ]]; then
+						config[nick]="${config[nick]:0:${server_config[NICKLEN]}}"
+						mynick=${config[nick]}
+						printf 'NICK %s\n' "${config[nick]}" >&3
+					else
+						printf 'NICK bbot1%s\n' "$(($RANDOM%100))" >&3
+					fi
+				;;
+				303) ## ISON reply, keep checking ?
+					if [[ ${line[3]} = : ]]; then
+						printf 'NICK %s\n' "${config[nick]:-bbot}" >&3
+					elif [[ $mynick != "${config[nick]}" ]]; then
+						{ sleep 180; printf 'ISON %s\n' "${config[nick]:-bbot}" >&3; } &
+					fi
+				;;
+				461) ## nick is malformed
+					[[ "${line[3]}" = nick ]] && printf 'NICK bbot2%s\n' "$((RANDOM%100))" >&3
+				;;
+
+				NICK)
+					if [[ $line = :$mynick || $line = :$mynick!* ]]; then
+						mynick="${line[2]/:/}"
+						_log "nick changed to '${line[2]/:/}'" info
+					elif [[ $line  = ":${config[nick]}" || $line = ":${config[nick]}!*" ]]; then
+						printf 'NICK %s\n' "${config[nick]}" >&3
+					fi
+			esac
+
+			## load user modules
+			if [[ -v modules[${line[1]}] ]]; then
+				local mod; for mod in ${modules[${line[1]}]}; do
+					[[ $mod && -f $mydir/modules/${mod}.module ]] && source "$mydir/modules/${mod}.module"
+				done
+			fi
+
+		fi
+	done
+}
+
+while getopts c:j:n:p:s:vx:z:P:S:BZ:O: var; do
+	case "$var" in
+		c) declare config_file="$OPTARG";;
+		Z) declare proxy_timeout="$OPTARG";;
+
+		z) config[http_proxy]="$OPTARG";;
+		j) config[join]="$OPTARG";;
+		n) config[nick]="$OPTARG";;
+		p) config[port]="$OPTARG";;
+		s) config[server]="$OPTARG";;
+		x) config[umodes]="$OPTARG";;
+
+		v) config[irc_verbosity]=1;;
+
+		P) config[password]="$OPTARG";;
+		S) config[sleep]="$OPTARG";;
+		O) config[oper]="${OPTARG}";;
+		*) usage;;
+	esac
+done
+
+## source config file
+[[ "${config_file:-nil}" = nil ]] || source "${config_file}"
+mkdir -p "${config[mydir]}/data/${config[server]}"
+touch "${config[mydir]}/data/${config[server]}/autoop"
+
+## check if some vars are set
+[[ "${config[server]:-nil}" = nil || "${config[port]:-nil}" = nil ]] && usage
+
+## export proxy value, if any
+if [[ ! -z "${config[http_proxy]}" ]]; then
+	export http_proxy="${config[http_proxy]}"
+	export https_proxy="${config[http_proxy]}"
+	export ftp_proxy="${config[http_proxy]}"
+	export ftps_proxy="${config[http_proxy]}"
+	export sftp_proxy="${config[http_proxy]}"
+	export ssh_proxy="${config[http_proxy]}"
+
+	export HTTP_PROXY="${config[http_proxy]}"
+	export HTPPS_PROXY="${config[http_proxy]}"
+	export FTP_PROXY="${config[http_proxy]}"
+	export FTPS_PROXY="${config[http_proxy]}"
+	export SFTP_PROXY="${config[http_proxy]}"
+	export SSH_PROXY="${config[http_proxy]}"
+fi
+
+cobe_rebuild() {
+  [[ -f $mydir/tmp/cobe.lock ]] && return
+	touch "$mydir/tmp/cobe.lock"
+	local changed=0 s k
+	local files=( "$mydir"/cobe/tmp-*.*.* )
+	if ((${#files[@]} >= 2)); then
+		[[ -f $mydir/cobe/cobe.learn ]] && source "$mydir/cobe/cobe.learn"
+		[[ -v cobe ]] || declare -gA cobe
+
+		for s in "${files[@]}"; do
+			[[ -f $s ]] || continue
+
+			source "$s" && rm -v "$s"
+			for k in "${!newcobe[@]}"; do
+				if [[ ! ${cobe[$k]} ]]; then
+					cobe["$k"]="${newcobe[$k]}"
+					((changed++))
+				fi
+			done
+		done
+		((changed)) && declare -p cobe > "$mydir/cobe/cobe.learn"
+		echo ">>> ${#cobe[@]} item(s) in memory (+${changed})" >&2
+	fi
+	rm -f "$mydir/tmp/cobe.lock"
+}
+
+while :; do
+	((${hecketer[use_cobe]:-0})) && cobe_rebuild
+	tinyirc
+	sleep 5
+done

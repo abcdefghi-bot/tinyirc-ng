@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+_uptimed() {
+	case "${line[1]}" in
+		376|422) ## end of MOTD, POTD
+			IFS=, read -r uptime uptime2 _ load < <(uptime)
+			read -r load <<<"$load"
+			printf 'AWAY :%s,%s,%s (%s)\n' "${config[hostname]:-$(hostname)}" "$uptime" "$uptime2" "$load" >&3
+		;;
+		306)
+			## ignore line sent by irssi proxy
+			## XXX might be required for weechat too
+			if ! [[ $line = :*.proxy ]]; then
+				{
+					sleep "${config[uptime]:-180}"
+					IFS=, read -r uptime uptime2 _ load < <(uptime)
+					read -r load <<<"$load"
+					printf 'AWAY :%s,%s,%s (%s)\n' "${config[hostname]:-$(hostname)}" "$uptime" "$uptime2" "$load" >&3
+				} &
+			fi
+		;;
+	esac
+}
+
+_uptimed
