@@ -1,25 +1,27 @@
 #!/usr/bin/env bash
 
-
 _uptimed() {
 	_getuptime() {
-		local i uptime uptime2 load
+		local i uptime uptime2 load version
+		read -r _ version _ < <(git log -1 | head -n1)
 		read -r i < <(uptime)
 		if [[ $i = *day* ]]; then
 			IFS=, read -r uptime uptime2 _ load < <(uptime)
+			read -r uptime <<<"$uptime"
+			read -r uptime2 <<<"$uptime2"
 			uptime="$uptime, $uptime2"
 		else
 			IFS=, read -r uptime _ load < <(uptime)
+			read -r uptime <<<"$uptime"
 		fi
-		read -r load <<<"$load"
-		printf '%s (%s)\n' "$uptime" "$load"
+		IFS=: read -r _ load <<<"$load"
+		printf '%s; %s (#%s)\n' "$uptime" "$load" "${version:0:7}"
 	}
 
 	case "${line[1]}" in
 		376|422) ## end of MOTD, POTD
 			local uptime; read -r uptime < <(_getuptime)
 			printf 'AWAY :%s, %s\n' "${config[hostname]:-$(hostname)}" "$uptime" >&3
-			#printf 'AWAY :%s,%s,%s (%s)\n' "${config[hostname]:-$(hostname)}" "$uptime" "$uptime2" "$load" >&3
 		;;
 		306)
 			## ignore line sent by irssi proxy
@@ -29,7 +31,6 @@ _uptimed() {
 					sleep "${config[uptime]:-180}"
 					local uptime; read -r uptime < <(_getuptime)
 					printf 'AWAY :%s, %s\n' "${config[hostname]:-$(hostname)}" "$uptime" >&3
-					#printf 'AWAY :%s,%s (%s)\n' "${config[hostname]:-$(hostname)}" "$uptime" "$load" >&3
 				} &
 			fi
 		;;
