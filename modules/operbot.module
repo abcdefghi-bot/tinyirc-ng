@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+_operbot() {
+	case "${line[1]}" in
+		001)  ## hello message from server
+			((${#config[oper]})) && echo "OPER ${config[oper]/:/ }" >&3
+		;;
+	esac
+}
+
+_operbot
+
