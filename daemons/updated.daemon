@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+_updated() {
+	while :; do
+		git fetch
+		if ! grep status | grep -q 'is up to date'; then
+			git pull
+		fi
+		sleep 300
+	done
+}
+
+{
+cd "$mydir"
+_updated
+} &
