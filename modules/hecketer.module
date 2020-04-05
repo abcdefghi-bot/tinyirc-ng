@@ -108,15 +108,12 @@ ask() {
 			while read -r content; do
 				mapfile i < <(printf '%b\n' "${content//\\\//\/}" | html2text -nobs -ascii)
 				content="${i[*]}"; content="${content//$'\r'/}"; content="${content//$'\n'/}"
-				if [[ ${cobe[*]} = *"${content}"* ]]; then
-					echo 'answers: reply already known' >&2
-				else
+				if [[ ! ${cobe[*]} = *"${content}"* ]]; then
 					read -r suri _ < <(shasum <<< "$content")
 					suri="answer$surianswer"
 					newcobe[$suri]=$content
 				fi
 				printf '%s\n' "$content"
-				printf 'answer-reply(%s): %s\n' "$suri" "$content" >&2
 			done < <(printf '%b' "$content" | tr '\r\n' ' ' | sed 's#<\\/p>#\n#g')
 			((${#newcobe[@]})) && declare -p newcobe > "$mydir/cobe/tmp-answer.$(date +%s).${RANDOM}${RANDOM}"
 		;;
