@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+_urlsave() {
+	if [[ -e $mydir/data/urls.db ]]; then source "$mydir/data/urls.db"
+	else declare -A urls=()
+	fi
+
+	local ticks nickname network chan i
+	local text="${line[*]:3}"; text=( ${text/:/} )
+
+	read -r ticks < <(date -u +%s)
+	read -r nickname _ < <(shasum <<<"$nick")
+	read -r network _ < <(shasum <<<"${config[server]}")
+	read -r chan _ < <(shasum <<<"${line[2]}")
+	local change=0
+	for i in "${text[@]}"; do
+		[[ ${i,,} =~ ^[a-z]{3,}:// && ! ${urls[$i]} ]] || continue
+		urls[$i]="$ticks $network $chan $nickname"
+		change=1
+	done
+	((change)) && declare -p urls > "$mydir/data/urls.db"
+}
+
+_urlsave
