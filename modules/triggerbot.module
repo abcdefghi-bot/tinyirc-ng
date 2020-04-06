@@ -3,6 +3,7 @@
 triggerbot() {
 	local i trigger t oline _hint
 	[[ "${line[3]/:/}" =~ ^${config[trigger]} ]] || return
+	[[ ${config[wait_identity],,:-y} = @(1|y) && ${config[nick]} != "$mynick" ]] && return
 	[[ -e "${mydir}/data/${config[server]}/triggers" ]] || mkdir -p "${mydir}/data/${config[server]}/triggers"
 	if [[ ! -e "${mydir}/data/${config[server]}/triggers/${line[2]}" ]]; then
 		declare triggers_enabled=(${triggers[default]:-help})
