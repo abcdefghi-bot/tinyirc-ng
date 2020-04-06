@@ -56,7 +56,7 @@ gen_nick() {
 
 # main function
 tinyirc() {
-	local var include skip REPLY
+	local var include skip REPLY mod
 
 	## load includes
 	for i in "${mydir}"/includes/*.inc; do source "$i"; done
@@ -227,11 +227,11 @@ tinyirc() {
 			esac
 
 			## load user modules
-			if [[ -v modules[${line[1]}] ]]; then
-				local mod; for mod in ${modules[${line[1]}]}; do
-					[[ $mod && -f $mydir/modules/${mod}.module ]] && source "$mydir/modules/${mod}.module"
-				done
-			fi
+			{
+			for mod in ${modules[${line[1]}]}; do
+				[[ $mod && -f $mydir/modules/${mod}.module ]] && source "$mydir/modules/${mod}.module"
+			done
+			} &
 
 		fi
 	done
