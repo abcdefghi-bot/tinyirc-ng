@@ -14,9 +14,9 @@ _remindd() {
 		read -r chan nick data <<<"${remind[$key]}"
 
 		if [[ $uname = Linux ]]; then
-			read -r ticks < <(date -u --date="@$ticks" +"%Y%m%d")
+			read -r ticks < <(date -u --date="@$ticks" +"%y%m%d")
 		elif [[ $uname = *BSD ]]; then
-			read -r ticks < <(date -u -r "$ticks" +"%Y%m%d")
+			read -r ticks < <(date -u -r "$ticks" +"%y%m%d")
 		fi
 
 		{
