@@ -3,7 +3,6 @@
 [[ -d $mydir/cobe ]] || mkdir -p "$mydir/cobe"
 
 translate() {
-	#echo "translate:  '$1', '$2'" >&2
 	local engines=(google bing yandex apertium) args=() tr x
 	if [[ ! -d $mydir/translate-shell ]]; then
 		(
@@ -14,8 +13,9 @@ translate() {
 	for x in {0..5}; do
 		args=(-no-warn -show-dictionary -no-ansi -brief -no-theme -no-init -e "${engines[$(( RANDOM % ${#engines[@]}))]}")
 		[[ -z "${config[http_proxy]}" ]] || args+=("--proxy ${config[http_proxy]}")
-		read -r tr < <("${mydir}/translate-shell/translate" "${args[@]}" "$1" "$2" 2>/dev/null) || sleep 1
+		read -r tr < <("${mydir}/translate-shell/translate" "${args[@]}" "$1" "$2" 2>/dev/null)
 		((${#tr})) && { printf '%s\n' "$tr"; return; }
+		sleep .5
 	done
 }
 
@@ -217,7 +217,7 @@ hecketer() {
 }
 
 if [[ "${hecketer[enabled]:-False}" =~ (T|t|Y|y|1) ]]; then
-	if [[ ${line[3]} = :"${mynick}"*  && ! -z ${line[*]:4} ]]; then
+	if [[ ${line[3]} = :"${mynick}"* && ! -z ${line[*]:4} ]]; then
 	{
 		((RANDOM>RANDOM)) && cobe_rebuild
 		 hecketer
