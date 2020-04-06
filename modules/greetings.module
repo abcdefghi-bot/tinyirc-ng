@@ -5,7 +5,7 @@ _greetings() {
 	chan="${chan/:/}"
 	if [[ -f $mydir/data/${config[server]}/greetings/$chan ]]; then
 		source "$mydir/data/${config[server]}/greetings/$chan"
-		[[ ${greetings[$nick]} ]] && privmsg "$chan" "*$nick* - ${greetings[$nick]}" >&3
+		[[ ${greetings[$nick]} ]] && privmsg "$chan" "$nick: ${greetings[$nick]}" >&3
 	fi
 }
 
