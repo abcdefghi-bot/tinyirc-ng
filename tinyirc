@@ -4,6 +4,7 @@
 declare mydir="${0%/*}" running_daemons=()
 [[ "${mydir}" = . ]] && mydir="$PWD"
 [[ -d "$mydir/tmp" ]] || mkdir -p "${mydir}/tmp"
+declare uname; read -r uname < <(uname)
 
 usage() {
 	cat << EOF
@@ -91,7 +92,8 @@ tinyirc() {
 	# read until connection closes
 	while read -ru3 -t"${config[timeout]:-300}"; do
 		REPLY="${REPLY/$'\r'/}"
-		((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config['server']}"
+		#((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config['server']}"
+		((${config[irc_verbosity]:-0})) && printf '%s\t%s\n' "${config['server']}" "$REPLY"
 
 		## if going over proxy
 		if ((${#proxy})); then
