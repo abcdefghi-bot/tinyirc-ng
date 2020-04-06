@@ -5,6 +5,7 @@ declare mydir="${0%/*}" running_daemons=()
 [[ "${mydir}" = . ]] && mydir="$PWD"
 [[ -d "$mydir/tmp" ]] || mkdir -p "${mydir}/tmp"
 declare uname; read -r uname < <(uname)
+declare version; read -r _ version _ < <(cd "$mydir" && git log -1 | head -n1)
 
 usage() {
 	cat << EOF

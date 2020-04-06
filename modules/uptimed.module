@@ -2,8 +2,7 @@
 
 _uptimed() {
 	_getuptime() {
-		local i uptime uptime2 load version
-		read -r _ version _ < <(git log -1 | head -n1)
+		local i uptime uptime2 load
 		read -r i < <(uptime)
 		if [[ $i = *day* ]]; then
 			IFS=, read -r uptime uptime2 _ load < <(uptime)
