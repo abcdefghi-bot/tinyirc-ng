@@ -100,3 +100,13 @@ is_option() {
 	printf '%s\n' ${match_options[@]}
 	((${#match_options[@]} == 1)) || return 1
 }
+
+mydate() {
+	local ticks="${1:-0}"
+	((ticks)) || return 1
+	if [[ $uname = Linux ]]; then
+		date -u --date="@$ticks" +"%y%m%d"
+	elif [[ $uname = *BSD ]]; then
+		date -u -r "$ticks" +"%y%m%d"
+	fi
+}

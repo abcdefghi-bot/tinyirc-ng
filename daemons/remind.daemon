@@ -12,12 +12,7 @@ _remindd() {
 		IFS=: read -r timeout ticks _ <<<"$key"
 		((timeout>ticks_now)) && continue
 		read -r chan nick data <<<"${remind[$key]}"
-
-		if [[ $uname = Linux ]]; then
-			read -r ticks < <(date -u --date="@$ticks" +"%y%m%d")
-		elif [[ $uname = *BSD ]]; then
-			read -r ticks < <(date -u -r "$ticks" +"%y%m%d")
-		fi
+		read -r ticks < <(mydate "$ticks")
 
 		{
 			action "$chan" "reminder saved by ${nick} on $ticks:"
