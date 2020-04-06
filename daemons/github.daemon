@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+github_daemon() {
+	[[ -e "${mydir}/data/${config[server]}/github.watchlist" ]] || { printf 'github.daemon: no watchlist, exiting.\n'; return 0; }
+	[[ -e $mydir/data/${config[server]}/github.database ]] || > "${mydir}/data/${config[server]}/github.database"
+	local chan project i projects
+	while :; do
+		while read -r chan project; do
+			((${#chan} && ${#project})) || break
+			[[ $chan = \;* ]] && continue
+			for i in pulls commits; do
+				case "$i" in
+					commits) retrieve "$chan" "$project" commit || _log "$project: cannot fetch commits" github;;
+					pulls) retrieve "$chan" "$project" pull || _log "$project: cannot fetch pulls" github;;
+				esac
+			done
+		done < "$mydir/data/${config[server]}/github.watchlist"
+		sleep 1800
+	done
+}
+
+retrieve() {
+	local chan=$1 project=$2 type=$3 firstrun=0 keys key logins login messages msg json
+	local fpath="${mydir}/data/${config[server]}/github.database"
+	_log "fetching project '$project' (${type})" "github"
+	## first run ?
+	grep -q "^${project}:${type}:" "$fpath" || firstrun=1
+	mapfile -t json < <(file_get_contents "https://api.github.com/repos/${project}/${type}s" "$RANDOM")
+
+	case "$type" in
+		pull)
+			jq ".[] | .number" <<<"${json[@]}" > /dev/null 2>&1 || { _log "$project: jq, pull failed." github; return 1; }
+			mapfile -t keys < <(jq '.[] | .number' <<<"${json[@]}")
+			mapfile -t logins < <(jq '.[] | .user.login' <<<"${json[@]}")
+			mapfile -t messages < <(jq '.[] | .body' <<<"${json[@]}")
+			mapfile -t titles < <(jq '.[] | .title' <<<"${json[@]}")
+		;;
+		commit)
+			jq '.[] | .sha' <<<"${json[@]}" > /dev/null 2>&1 || { _log "$project: jq, commit failed." github; return 1; }
+			mapfile -t keys < <(jq '.[] | .sha' <<<"${json[@]}")
+			mapfile -t logins < <(jq '.[] | .author.login' <<<"${json[@]}")
+			mapfile -t messages < <(jq '.[] | .commit.message' <<<"${json[@]}")
+		;;
+	esac
+
+	if ! ((${#keys[@]} == ${#logins[@]} && ${#logins[@]} == ${#messages[@]})); then
+		_log "$project: retrieve(${type}): count missmatch" github
+		return 1
+	fi
+
+	local xyz
+	for ((x=$((${#keys[@]}-1));$x>=0;x--)); do
+		case "$type" in
+			pull) IFS=\, read -r key _ <<<"${keys[x]}";;
+			commit) IFS=\" read -r _ key _ <<<"${keys[x]}";;
+		esac
+
+		grep -q "^${project}:${type}:${key}" "$fpath" && continue
+		printf '%s:%s:%s\n' "$project" "$type" "$key" >> "$fpath"
+
+		IFS=\" read -r _ login _ <<<"${logins[x]}"
+		((${#login})) || login=unknown
+		mapfile msg < <(printf '%b' "${messages[x]}")
+		action "$chan" "*${login// /\* \*}* <https://github.com/${project}/${type}/${key:0:10}>"
+
+		if [[ $type = pull ]]; then
+			title="${titles[x]/\",/}"; title="${title//\\\"/\"}"
+			xyz=$(html2text -nobs -ascii <<<"$title") || xyz=$title
+			[[ $xyz = \"\" || ${#xyz} -eq 0 ]] || privmsg "$chan" "${xyz}"
+		fi
+
+		for ((y=0;y<${#msg[@]};y++)); do
+			message="${msg[y]/\",/}"; message="${message//\\\"/\"}"
+			#printf 'message(brute): "%s"\n' "$message" >&2
+			[[ $message = \"\" || ${#message} -eq 0 ]] || privmsg "$chan" "$message"
+			((y>=${git_max_lines:-5})) && break
+		done
+	done
+}
+
+github_daemon &
