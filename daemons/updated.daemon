@@ -3,9 +3,7 @@
 _updated() {
 	while :; do
 		git fetch -q
-		if ! grep status | grep -q 'is up to date'; then
-			git pull
-		fi
+		git status | grep -q 'is up to date' || git pull
 		sleep "${updated[check]:-1800}"
 	done
 }
