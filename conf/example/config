@@ -1,16 +1,7 @@
-declare mydir="${0%/*}"
-[[ ${mydir} = '.' ]] && mydir="$PWD"
-[[ -e ${mydir}/dbs ]] || mkdir -p "${mydir}/dbs"
-
 declare -A hecketer=(
 	[enabled]=1
 	[use_cobe]=1
 	[timeout]=90
-)
-
-declare -A proxies=(
-	[http]='127.0.0.1:8118'
-	[socks5]='127.0.0.1:9050'
 )
 
 declare -A config=(
@@ -54,8 +45,6 @@ declare -A modules=(
 
 declare -A triggers=(
 	[default]='help remind trigger tell'
-	[available]='help remind trigger tell'
 )
 
 declare daemons=(remind github updated)
-declare url_memory=()
