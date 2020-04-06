@@ -40,6 +40,6 @@ trigger() {
 	((${#effective[@]})) && declare -p triggers_enabled > "${mydir}/data/${config['server']}/triggers/${line[2]}"
 }
 
-if has_access "${line[0]}" 0; then
-	[[ -z "${line[5]}" ]] || trigger ${line[@]:5}
+if has_access "${line[0]}" 5 || isop "${nick/:/}" "${line[2]}"; then
+	[[ -z ${line[5]} ]] || trigger ${line[@]:5}
 fi
