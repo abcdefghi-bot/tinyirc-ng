@@ -110,3 +110,13 @@ mydate() {
 		date -u -r "$ticks" +"%y%m%d"
 	fi
 }
+
+isop() {
+	local chan=$2 nick=$1
+	if [[ -f $mydir/tmp/${config[server]}/nicklist/$chan ]]; then
+		source "$mydir/tmp/${config[server]}/nicklist/$chan"
+		[[ ${oplist[$nick]} ]] && return
+	fi
+	return 1o
+
+}
