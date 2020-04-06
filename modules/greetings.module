@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+_greetings() {
+	local chan=${line[2]} nick; IFS=! read -r nick _ <<<"${line[0]/:/}"
+	chan="${chan/:/}"
+	if [[ -f $mydir/data/${config[server]}/greetings/$chan ]]; then
+		source "$mydir/data/${config[server]}/greetings/$chan"
+		[[ ${greetings[$nick]} ]] && privmsg "$chan" "*$nick* - ${greetings[$nick]}" >&3
+	fi
+}
+
+_greetings
