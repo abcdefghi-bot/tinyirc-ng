@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 nicklistmgr() {
-	local action=${line[1]} nicklist_dir="$mydir/tmp/${config[server]}/nicklist" chan nicklist
+	local chan=${line[2]} action=${line[1]} nicklist_dir="$mydir/tmp/${config[server]}/nicklist" chan nicklist
+	[[ $chan = :\#* ]] && chan="${chan/:/}"
 	[[ -d $nicklist_dir ]] || mkdir -p "$nicklist_dir"
 	local time; read -r time < <(date -u +%s)
 
 	case "$action" in
 		MODE)
-			chan="${line[2]}"
 			[[ -e $nicklist_dir/$chan ]] || return
 			source "$nicklist_dir/$chan"
 			local chars="${line[3]}" item_count=3 char sign i
@@ -23,7 +23,7 @@ nicklistmgr() {
 						continue
 					;;
 
-					*)
+					o|h|v)
 						((item_count++)); nick="${line[$item_count]}"
 						case "${chars:$i:1}" in
 							o) # (de)op
@@ -44,9 +44,6 @@ nicklistmgr() {
 			done
 	;;
 	JOIN)
-		local chan="${line[2]}"
-		[[ $chan = :\#* ]] && chan="${chan/:/}"
-
 		if [[ $nick = "$mynick" ]]; then
 			[[ -e $nicklist_dir/$chan ]] && rm "$nicklist_dir/$chan"
 			declare -A nicklist=() oplist=() holist=() volist=()
@@ -57,25 +54,20 @@ nicklistmgr() {
 		fi
 	;;
 	KICK)
-		local chan="${line[2]}"
 		[[ -e $nicklist_dir/$chan ]] || return
 		local nick="${line[3]}"
 		[[ $nick = "$mynick" ]] && { rm "$nicklist_dir/$chan"; return; }
 		source "$nicklist_dir/$chan"
-		unset -v nicklist["$nick"]
 		if ((${#nicklist[@]}==1)); then
 			[[ ${oplist[$mynick]} || ${holist[$mynick]} ]] || {
 				cycle "$chan" >&3
 				return
 			}
 		fi
-		unset -v oplist["$nick"] holist["$nick"] volist["$nick"]
+		unset -v nicklist["$nick"] oplist["$nick"] holist["$nick"] volist["$nick"]
 	;;
 
 	PART)
-		local chan="${line[2]}"
-		[[ $chan = :\#* ]] && chan="${chan/:/}"
-
 		[[ -e $nicklist_dir/$chan ]] || return
 
 		## the bot parted the chan, set nicklist as empty
@@ -84,32 +76,24 @@ nicklistmgr() {
 			return
 		fi
 		source "$nicklist_dir/$chan"
-		unset -v nicklist["$nick"]
 		if ((${#nicklist[@]}==1)); then
 			[[ ${oplist[$mynick]} || ${holist[$mynick]} ]] || {
 				cycle "$chan" >&3
 				return
 			}
 		fi
-		unset -v oplist["$nick"] holist["$nick"] volist["$nick"]
+		unset -v nicklist["$nick"] oplist["$nick"] holist["$nick"] volist["$nick"]
 	;;
 	QUIT|NICK)
 		local fp
 
 		for fp in "$nicklist_dir"/*; do
+			[[ -e $fp ]] || break
 			chan="${fp##*/}"
-
-			if [[ $chan = :* ]]; then chan="${chan/:/}"
-			elif [[ $chan = \* ]]; then break
-			fi
 			source "$fp"
 
 			if [[ ${line[1]} = NICK ]]; then
 				local newnick="${line[2]}"; newnick="${newnick/:/}"
-				[[ $line = ":${mynick}!"* ]] && {
-					declare -g mynick=$newnick
-					echo "mynewnick: $mynick ($newnick) - (old)nick: $nick" >&2
-				}
 				nicklist["$newnick"]="${nicklist[$nick]}"
 				[[ ${oplist[$nick]} ]] && oplist["$newnick"]="${oplist[$nick]}"
 				[[ ${holist[$nick]} ]] && holist["$newnick"]="${holist[$nick]}"
@@ -142,8 +126,7 @@ nicklistmgr() {
 		done
 	;;
 	esac
-	[[ $nicklist_dir && $chan ]] || return
-	declare -p nicklist oplist holist volist > "$nicklist_dir/$chan"
+	[[ $nicklist_dir && $chan ]] && declare -p nicklist oplist holist volist > "$nicklist_dir/$chan"
 }
 
 nicklistmgr
