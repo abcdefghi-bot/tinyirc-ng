@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
-privmsg() { printf 'PRIVMSG %s :%s\n' "$1" "$2" >&3; }
-action() { printf 'PRIVMSG %s :%bACTION %s%b\n' "$1" '\x01' "$2" '\x01' >&3; }
+privmsg() { printf 'PRIVMSG %s :%s\n' "$1" "$2"; }
+action() { printf 'PRIVMSG %s :%bACTION %s%b\n' "$1" '\x01' "$2" '\x01'; }
 ctcp() { printf 'PRIVMSG %s %bACTION :%s%b\n' "$1" '\x01' "$2" '\x01'; }
 
-op() { printf 'MODE %s +o %s\n' "$1" "$2" >&3; }
-deop() { printf 'MODE %s -o %s\n' "$1" "$2" >&3; }
-halfop() { printf 'MODE %s +h %s\n' "$1" "$2" >&3 ; }
-dehalfop() { printf 'MODE %s -h %s\n' "$1" "$2" >&3 ; }
-voice() { printf 'MODE %s +v %s\n' "$1" "$2" >&3 ; }
-devoice() { printf 'MODE %s -v %s\n' "$1" "$2" >&3 ; }
+op() { printf 'MODE %s +o %s\n' "$1" "$2"; }
+deop() { printf 'MODE %s -o %s\n' "$1" "$2"; }
+halfop() { printf 'MODE %s +h %s\n' "$1" "$2"; }
+dehalfop() { printf 'MODE %s -h %s\n' "$1" "$2"; }
+voice() { printf 'MODE %s +v %s\n' "$1" "$2"; }
+devoice() { printf 'MODE %s -v %s\n' "$1" "$2"; }
 
-topic() { printf 'TOPIC %s :%s\n' "$1" "$2" >&3; }
+topic() { printf 'TOPIC %s :%s\n' "$1" "$2"; }
 
 autoop() {
 	local chan re
@@ -21,12 +21,12 @@ autoop() {
 	return 1
 }
 
-notice() { printf "NOTICE %s :%s\n" "$1" "$2" >&3; }
-join() { printf "JOIN %s\n" "$1" >&3; }
-part() { local reason="$2"; printf "PART %s :%s\n" "$1" "${reason:-leaving}" >&3; }
-cycle() { local reason="$2"; printf "PART %s :%s\nJOIN %s %s\n" "$1" "${reason:-cycle}" "$1" "$3" >&3; }
-kick() { local reason=$3; printf "KICK %s %s :%s\n" "$1" "$2" "${reason:-${2}}" >&3; }
-unban() { printf 'MODE %s -b %s\n' "$1" "$2" >&3; }
+notice() { printf "NOTICE %s :%s\n" "$1" "$2"; }
+join() { printf "JOIN %s\n" "$1"; }
+part() { local reason="$2"; printf "PART %s :%s\n" "$1" "${reason:-leaving}"; }
+cycle() { local reason="$2"; printf "PART %s :%s\nJOIN %s %s\n" "$1" "${reason:-cycle}" "$1" "$3"; }
+kick() { local reason=$3; printf "KICK %s %s :%s\n" "$1" "$2" "${reason:-${2}}"; }
+unban() { printf 'MODE %s -b %s\n' "$1" "$2"; }
 ## ban <chan> <banmask> <timeout>
 ## if timeout is 0 (zero), no auto unban
 ban() {

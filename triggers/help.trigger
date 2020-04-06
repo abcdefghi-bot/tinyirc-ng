@@ -18,8 +18,10 @@ _help() {
 	done
 
 	if ((${#var})); then
+		{
 		action "${line[2]}" "${var[*]}"
 		privmsg "${line[2]}" "Also, ask me anything and I will do my best to provide an accurate answer."
+		} >&3
 	fi
 
 }

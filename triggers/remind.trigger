@@ -7,22 +7,29 @@ _remind() {
 
 case "$hint" in
 	help)
-		privmsg "${line[2]}" "${nick/:/}: 'remind 00:10:10 foo' will make me remind you foo in 10 secs."
+		privmsg "${line[2]}" "${nick/:/}: 'remind 00:10:10 foo' will make me remind you foo in 10 secs." >&3
 	;;
-	#list)
-	#	chan="${line[2]}"
-	#	while IFS=\| read -r chan expire data id; do
-	#		expire=$(date -d "@${expire}")
-	#		action "${line[2]}" "(#${id}) $expire" >&3
-	#		privmsg "${line[2]}" "$data" >&3
-	#	done < <(mysqlite "${config[database]}" "SELECT chan,timeout,content,id FROM remind WHERE nick='${nick//\'/\'\'}' AND chan='${chan//\'/\'\'}' AND checked=0")
-	#	unset chan expire data
-	#	;;
-	*)
+	list)
+		[[ -e "$mydir/data/${config[server]}/remind.db" ]] || return
+		source "$mydir/data/${config[server]}/remind.db"
 
+		local chan="${line[2]}" c n d
+		for key in "${!remind[@]}"; do
+			read -r  c n d <<<"${remind[$key]}"
+			if [[ $n = "${nick/:/}" && $chan = "$c" ]]; then
+				IFS=: read -r remind_time ticks _ <<<"$key"
+				read -r remind_time < <(mydate "$remind_time")
+				read -r ticks < <(mydate "$ticks")
+				{
+				action "$chan" "reminder saved on $remind_time, with expiration on $ticks"
+				privmsg "$chan" "$d"
+				} >&3
+			fi
+		done
+	;;
+	*)
 		[[ -e $mydir/data/${config[server]}/remind.db ]] && source "$mydir/data/${config[server]}/remind.db"
 		((${#remind[@]})) || declare -gA remind
-
 		local duration remind_data remind_next remind_now current remind_time
 		remind_time=$(date +%s)
 		[[ ${line[4]} && ${line[5]} ]] || return
@@ -49,7 +56,7 @@ case "$hint" in
 		local ticks; read -r ticks < <(date -u +%s)
 		remind["$remind_time:$ticks:$RANDOM"]="${line[2]} ${nick/:/} $remind_data"
 		declare -p remind > "$mydir/data/${config[server]}/remind.db"
-		privmsg "${line[2]}" "${nick/:/}, saved."
+		privmsg "${line[2]}" "${nick/:/}, saved." >&3
 	;;
 esac
 }

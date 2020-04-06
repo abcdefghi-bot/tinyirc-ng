@@ -61,6 +61,8 @@ retrieve() {
 		IFS=\" read -r _ login _ <<<"${logins[x]}"
 		((${#login})) || login=unknown
 		mapfile msg < <(printf '%b' "${messages[x]}")
+
+		{
 		action "$chan" "*${login// /\* \*}* <https://github.com/${project}/${type}/${key:0:10}>"
 
 		if [[ $type = pull ]]; then
@@ -75,6 +77,7 @@ retrieve() {
 			[[ $message = \"\" || ${#message} -eq 0 ]] || privmsg "$chan" "$message"
 			((y>=${git_max_lines:-5})) && break
 		done
+		} >&3
 	done
 }
 

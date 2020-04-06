@@ -23,13 +23,9 @@ has_message() {
 		[[ $target = "$enick" ]] || continue
 
 		read -r from ticks data <<<"${tell[$key]}"
-		if [[ $uname = Linux ]]; then
-			read -r ticks < <(date -u --date="@$ticks")
-		elif [[ $uname = *BSD ]]; then
-			read -r ticks < <(date -u -r "$ticks")
-		fi
+		read -r ticks < <(mydate "$ticks")
 
-		printf 'PRIVMSG %s :message saved by *%s* on %s:\nPRIVMSG %s :%s\n' "$1" "$from" "$ticks" "$1" "$data"
+		printf 'PRIVMSG %s :message saved by *%s* on %s:\nPRIVMSG %s :%s\n' "$1" "$from" "$ticks" "$1" "$data" >&3
 		unset tell[$key]
 		change=1
 	done

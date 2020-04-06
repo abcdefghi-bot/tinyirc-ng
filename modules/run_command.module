@@ -13,7 +13,7 @@ execute_command() {
 
 	while read -r line; do
 		privmsg "$chan" "$line"
-	done < <("${aprog[@]}" 2>&1)
+	done < <("${aprog[@]}" 2>&1) >&3
 }
 
 {

@@ -6,7 +6,7 @@ _ircart() {
 			cd "$mydir" && git clone https://github.com/ircart/ircart
 		) || return
 	fi
-	local e=${line[5]}
+	local e=${line[*]:5}
 	((${#e})) || e=__random__
 	if [[ $e = __random__ ]]; then
 		arts=( $mydir/ircart/**/**txt )
@@ -17,7 +17,7 @@ _ircart() {
 	art=${arts[ $(( RANDOM % ${#arts[@]} )) ]}
 	[[ -f $art ]] || return
 	local fn=$art; fn=${fn##*/}; fn=${fn%.*}
-	privmsg "${line[2]}" "Playing file '$fn'"
+	privmsg "${line[2]}" "Playing file '$fn'" >&3
 	while read -r; do
 		printf 'PRIVMSG %s :%s\n' "${line[2]}" "$REPLY"
 	done <"$art" >&3

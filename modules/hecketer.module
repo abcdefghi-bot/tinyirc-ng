@@ -198,8 +198,10 @@ hecketer() {
 
 				((${#answer} && ${#answer} < 384)) || continue
 				[[ $answer = "$1" ]] && continue
-				action "${line[2]}" '.oO( ... thinks ... )'
-				printf '%s\n' "$answer"
+				{
+					action "${line[2]}" '.oO( ... thinks ... )'
+					printf '%s\n' "$answer"
+				} >&3
 				break
 			done
 			[[ -e $tmpfile ]] && rm -f "$tmpfile"*
@@ -213,7 +215,7 @@ hecketer() {
 		((${#translation})) && answer=$translation
 	fi
 
-	((${#answer})) && privmsg "${line[2]}" "${nick/:/}: $answer"
+	((${#answer})) && privmsg "${line[2]}" "${nick/:/}: $answer" >&3
 }
 
 if [[ "${hecketer[enabled]:-False}" =~ (T|t|Y|y|1) ]]; then
