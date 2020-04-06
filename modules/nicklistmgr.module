@@ -58,12 +58,6 @@ nicklistmgr() {
 		local nick="${line[3]}"
 		[[ $nick = "$mynick" ]] && { rm "$nicklist_dir/$chan"; return; }
 		source "$nicklist_dir/$chan"
-		if ((${#nicklist[@]}==1)); then
-			[[ ${oplist[$mynick]} || ${holist[$mynick]} ]] || {
-				cycle "$chan" >&3
-				return
-			}
-		fi
 		unset -v nicklist["$nick"] oplist["$nick"] holist["$nick"] volist["$nick"]
 	;;
 
@@ -76,12 +70,6 @@ nicklistmgr() {
 			return
 		fi
 		source "$nicklist_dir/$chan"
-		if ((${#nicklist[@]}==1)); then
-			[[ ${oplist[$mynick]} || ${holist[$mynick]} ]] || {
-				cycle "$chan" >&3
-				return
-			}
-		fi
 		unset -v nicklist["$nick"] oplist["$nick"] holist["$nick"] volist["$nick"]
 	;;
 	QUIT|NICK)
@@ -102,9 +90,6 @@ nicklistmgr() {
 
 			unset -v nicklist["$nick"] oplist["$nick"] holist["$nick"] volist["$nick"]
 			declare -p nicklist oplist holist volist > "$fp"
-			if ((${#nicklist[@]}==1)); then
-				[[ ${oplist[$mynick]} || ${holist[$mynick]} ]] || cycle "$chan" >&3 &
-			fi
 		done
 		return
 	;;
