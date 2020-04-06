@@ -6,12 +6,13 @@ _help() {
 		declare triggers_enabled=(${triggers[default]:-help})
 		declare -p triggers_enabled > "${mydir}/data/${config[server]}/triggers/${line[2]}"
 	fi
-	local available=( ${triggers[available]:-help} ) var=() x
+	local available=( "$mydir"/triggers/*trigger ) var=() x
 	source "${mydir}/data/${config[server]}/triggers/${line[2]}"
 
 	for x in "${available[@]}"; do
-		if [[ ! -f $mydir/triggers/$x.trigger ]]; then continue
-		elif inarray "${x}" ${triggers_enabled[@]}; then var+=("*${x}*")
+		[[ -f $x ]] || continue
+		x=${x##*/}; x=${x%.*}
+		if inarray "${x}" ${triggers_enabled[@]}; then var+=("*${x}*")
 		else var+=("${x}")
 		fi
 	done
