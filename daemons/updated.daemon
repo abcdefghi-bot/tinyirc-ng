@@ -6,7 +6,7 @@ _updated() {
 		if ! grep status | grep -q 'is up to date'; then
 			git pull
 		fi
-		sleep 300
+		sleep "${updated[check]:-1800}"
 	done
 }
 
