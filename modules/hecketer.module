@@ -208,8 +208,9 @@ hecketer() {
 	## send a reply if we got something to send
 	#((${#answer})) || return
 
-	if [[ ${config[translate]:-0} -gt 0 &&  ${config[lang]} != en ]]; then
-		read -r answer < <(translate "en:${config[lang]}" "$answer")
+	if [[ ${config[translate]:-0} -gt 0 && ${config[lang]} != en ]]; then
+		read -r translation < <(translate "en:${config[lang]}" "$answer")
+		((${#translation})) && answer=$translation
 	fi
 
 	((${#answer})) && privmsg "${line[2]}" "${nick/:/}: $answer"
