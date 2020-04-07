@@ -57,6 +57,7 @@ retrieve() {
 
 		grep -q "^${project}:${type}:${key}" "$fpath" && continue
 		printf '%s:%s:%s\n' "$project" "$type" "$key" >> "$fpath"
+		((firstrun)) && continue
 
 		IFS=\" read -r _ login _ <<<"${logins[x]}"
 		((${#login})) || login=unknown
