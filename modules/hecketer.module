@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-[[ -d $mydir/cobe ]] || mkdir -p "$mydir/cobe"
 
 translate() {
 	local engines=(google bing yandex apertium) args=() tr x
@@ -170,9 +169,11 @@ hecketer() {
 
 	## fallback to cobe
 	if [[ ${#answer} -eq 0 && ${hecketer[use_cobe]:-0} -gt 0 ]]; then
+		[[ -d $mydir/cobe ]] || mkdir -p "$mydir/cobe"
+
 		_log "asking '$q'" "cobeia"
 
-		local brains=( cobe/*brain ) tmpfile i choice
+		local brains=( $mydir/cobe/*brain ) tmpfile i choice
 		read -r answer < <(
 			## no brain
 			if [[ $brains = 'cobe/*brain' ]]; then
@@ -221,6 +222,6 @@ if [[ "${hecketer[enabled]:-False}" =~ (T|t|Y|y|1) ]]; then
 	{
 		((RANDOM>RANDOM)) && cobe_rebuild
 		 hecketer
-	} &
+	}
 	fi
 fi
