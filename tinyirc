@@ -169,7 +169,7 @@ tinyirc() {
 				;;
 
 				433) ## nick is already used
-					if [[ ${line[3]} = ${config[nick]} ]]; then
+					if [[ ${line[3]} = "${config[nick]}" ]]; then
 						printf 'ISON %s\n' "${config[nick]}" >&3
 					fi
 					read -r nn < <(gen_nick "${config[nick]:-bbot}")
