@@ -143,8 +143,8 @@ tinyirc() {
 							## dont proceed any further flooder's input
 							continue
 						fi
-						[[ ${line[*]:3} =~ \#no(log|op) ]] && continue
 					fi
+					[[ ${line[*]:3} =~ \#no(log|op) ]] && continue
 				;;
 				001)	## hello message from server
 					_log "bot connected. nick: '${line[2]}' (real: ${config[nick]})" 'info'
