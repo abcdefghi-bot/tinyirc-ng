@@ -8,7 +8,7 @@
 # > change nick
 # > sync chans
 rehash() {
-	[[ -z "$config_file" ]] && return
+	[[ -z $config_file ]] && return
 
 	source "$config_file"
 	#local tempfile i
@@ -18,7 +18,7 @@ rehash() {
 
 	## re-source includes
 	for i in "${mydir}"/includes/*.inc; do
-		[[ -e "$i" ]] && source "$i"
+		[[ -e $i ]] && source "$i"
 	done
 
 	## join new chan(s)
@@ -40,7 +40,7 @@ is_flood() {
 	else key="${mask}:${line[2]/:/}"; fi
 
 	## set custom trigger from "$3", "$4"
-	if [[ ! -z "$3" && ! -z "$4" ]]; then trigger="$3:$4"
+	if [[ $3 && $4 ]]; then trigger="$3:$4"
 	else trigger="${config[antiflood]:-5:3}"; fi
 
 	# existing user
@@ -79,11 +79,11 @@ inarray() { local n=$1 h; shift; for h; do [[ $n = "$h" ]] && return; done; retu
 has_access() {
 	local user="${1/:}" reqlevel="${2:-9999}" i
 
-	[[ -e "${config[mydir]}/data/${config[server]}/access" ]] || > "${config[mydir]}/data/${config[server]}/access"
+	[[ -e ${config[mydir]}/data/${config[server]}/access ]] || > "${config[mydir]}/data/${config[server]}/access"
 
 	while IFS=: read -r u level; do
 		if ((${#u} && ${#level})); then
-			[[ "${user,,}" =~ ${u,,} && $level -le $reqlevel ]] && return
+			[[ ${user,,} =~ "${u,,}" && $level -le $reqlevel ]] && return
 		fi
 	done < "${config[mydir]}/data/${config[server]}/access"
 	return 1
@@ -95,7 +95,7 @@ is_option() {
 	local user_option="$1" match_options=(); shift
 	for option in $@; do
 		#[[ "${option,,}" =~ ^${user_option,,} ]] && { printf '%s\n' "$option"; return 0;}
-		[[ ${option,,} =~ ^${user_option,,} ]] && match_options+=("$option")
+		[[ ${option,,} =~ ^"${user_option,,}" ]] && match_options+=("$option")
 	done
 	printf '%s\n' ${match_options[@]}
 	((${#match_options[@]} == 1)) || return 1
