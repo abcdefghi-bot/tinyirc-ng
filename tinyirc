@@ -146,9 +146,6 @@ tinyirc() {
 						[[ ${line[*]:3} =~ \#no(log|op) ]] && continue
 					fi
 				;;
-				INVITE)
-					join "${line[3]}" >&3
-				;;
 				001)	## hello message from server
 					_log "bot connected. nick: '${line[2]}' (real: ${config[nick]})" 'info'
 					((${config[infiniping]:-0})) && printf 'PING %s\n' "$RANDOM" >&3
