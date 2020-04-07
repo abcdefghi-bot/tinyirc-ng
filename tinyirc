@@ -146,9 +146,6 @@ tinyirc() {
 						[[ ${line[*]:3} =~ \#no(log|op) ]] && continue
 					fi
 				;;
-				396)
-					myhostname=${line[4]}
-				;;
 				INVITE)
 					join "${line[3]}" >&3
 				;;
