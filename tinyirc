@@ -129,8 +129,8 @@ tinyirc() {
 			case "${line[1]}" in
 				## antiflood
 				PRIVMSG|NOTICE)
-					if [[ ${line[2]} =~ \# ]]; then
-						if [[ ${config[antiflood]} =~ ^[0-9]{1,}:[0-9]{1,}$ ]] && is_flood "$line" "${line[2]}" ${config[antiflood]//:/ }; then
+					if [[ ${line[2]} =~ \# && ${config[antiflood]} =~ ^[0-9]{1,}:[0-9]{1,}$ ]]; then
+						if is_flood "$line" "${line[2]}" ${config[antiflood]//:/ }; then
 							if [[ -f $mydir/tmp/${config[server]}/nicklist/${line[2]} ]]; then
 								source "$mydir/tmp/${config[server]}/nicklist/${line[2]}"
 							else
