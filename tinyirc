@@ -127,23 +127,7 @@ tinyirc() {
 
 			## core IRC thing
 			case "${line[1]}" in
-				## antiflood
 				PRIVMSG|NOTICE)
-					if [[ ${line[2]} =~ \# && ${config[antiflood]} =~ ^[0-9]{1,}:[0-9]{1,}$ ]]; then
-						if is_flood "$line" "${line[2]}" ${config[antiflood]//:/ }; then
-							if [[ -f $mydir/tmp/${config[server]}/nicklist/${line[2]} ]]; then
-								source "$mydir/tmp/${config[server]}/nicklist/${line[2]}"
-							else
-								declare -A oplist
-							fi
-
-							if [[ ${oplist[$mynick]} && ! ${oplist[${nick/:/}]} ]]; then
-								ban "${line[2]}" "$mask" "${config[tmpban_duration]:-45}"
-							fi
-							## dont proceed any further flooder's input
-							continue
-						fi
-					fi
 					[[ ${line[*]:3} =~ \#no(log|op) ]] && continue
 				;;
 				001)	## hello message from server
