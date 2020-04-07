@@ -57,7 +57,7 @@ gen_nick() {
 # main function
 tinyirc() {
 	local var include skip REPLY mod
-	local line nick ident host var mask i chan array
+	local line nick ident host var i chan array
 	local rnick="bbot${RANDOM}"
 
 	## load includes
@@ -94,14 +94,12 @@ tinyirc() {
 	# read until connection closes
 	while read -ru3 -t"${config[timeout]:-300}"; do
 		REPLY="${REPLY/$'\r'/}"
-		#((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config['server']}"
-		((${config[irc_verbosity]:-0})) && printf '%s\t%s\n' "${config['server']}" "$REPLY"
+		((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config['server']}"
 
 		## if going over proxy
 		if ((${#proxy})); then
 			## return if proxy error
 			[[ $REPLY =~ ^HTTP/1.[0-1]\ 200 ]] || return
-
 			_irc_login "$rnick" >&3
 			unset -v proxy
 
@@ -109,7 +107,7 @@ tinyirc() {
 		elif [[ ${REPLY} = PING* ]]; then
 			printf '%s\n' "${REPLY/I/O}" >&3
 		## resend ping request ?
-		elif [[ ${REPLY} =~ ^:[a-zA-Z0-9_.-]+\ PONG* && ${config[infiniping]:-0} -gt 0 ]]; then
+		elif [[ ${REPLY} = :+([a-zA-Z0-9_.-])\ PONG* && ${config[infiniping]:-0} -gt 0 ]]; then
 			{
 				sleep ${config[infiniping]:-5}
 				printf 'PING %s\n' "$RANDOM" >&3
@@ -122,12 +120,11 @@ tinyirc() {
 
 			# extract nick, ident and host
 			IFS=!@ read -r nick ident host <<<"${line/:/}"
-			mask="*!*@${host}"
 
 			## core IRC thing
 			case "${line[1]}" in
-				PRIVMSG|NOTICE)
-					[[ ${line[*]:3} =~ \#no(log|op) ]] && continue
+				PRIVMSG)
+					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
 				;;
 				005)	# parse some server infos
 					declare -gA server_config
