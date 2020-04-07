@@ -57,6 +57,8 @@ gen_nick() {
 # main function
 tinyirc() {
 	local var include skip REPLY mod
+	local line nick ident host var mask i chan array
+	local rnick="bbot${RANDOM}"
 
 	## load includes
 	for i in "${mydir}"/includes/*.inc; do source "$i"; done
@@ -75,7 +77,6 @@ tinyirc() {
 	## http direct connect
 	else
 		_connect "${config[server]}" "${config[port]}" || return
-		local rnick="bbot${RANDOM}"
 		_irc_login "$rnick" >&3
 	fi
 
@@ -101,7 +102,6 @@ tinyirc() {
 			## return if proxy error
 			[[ $REPLY =~ ^HTTP/1.[0-1]\ 200 ]] || return
 
-			local rnick="bbot${RANDOM}"
 			_irc_login "$rnick" >&3
 			unset -v proxy
 
@@ -116,7 +116,6 @@ tinyirc() {
 			} &
 		## parse other input
 		elif [[ $REPLY = :* ]]; then
-			local line nick ident host var mask i chan
 
 			# split line to array
 			read -ra line <<<"$REPLY"
