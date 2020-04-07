@@ -16,7 +16,6 @@ execute_command() {
 	done < <("${aprog[@]}" 2>&1) >&3
 }
 
-{
 ## execute py command
 if [[ "${line[3]}" = :\>\>\> ]]; then
 	has_access "${line/:/}" 5 && execute_command python "${line[2]}" "${nick/:/}" ${line[*]:4}
@@ -27,4 +26,3 @@ elif [[ "${line[3]}" = :\$ ]]; then
 elif [[ "${line[3]}" = :# ]]; then
 	has_access "${line/:/}" 0 && execute_command sudo "${line[2]}" "${nick/:/}" ${line[@]:4}
 fi
-} &
