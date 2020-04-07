@@ -5,15 +5,13 @@ github_daemon() {
 	[[ -e $mydir/data/${config[server]}/github.database ]] || > "${mydir}/data/${config[server]}/github.database"
 	local chan project i projects
 	while :; do
-		while read -r chan project; do
+		while read -r chan project type; do
 			((${#chan} && ${#project})) || break
 			[[ $chan = \;* ]] && continue
-			for i in pulls commits; do
-				case "$i" in
-					commits) retrieve "$chan" "$project" commit || _log "$project: cannot fetch commits" github;;
-					pulls) retrieve "$chan" "$project" pull || _log "$project: cannot fetch pulls" github;;
-				esac
-			done
+			case "${type:-commits}" in
+				commits) retrieve "$chan" "$project" commit || _log "$project: cannot fetch commits" github;;
+				pulls) retrieve "$chan" "$project" pull || _log "$project: cannot fetch pulls" github;;
+			esac
 		done < "$mydir/data/${config[server]}/github.watchlist"
 		sleep 1800
 	done
