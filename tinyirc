@@ -94,7 +94,7 @@ tinyirc() {
 	# read until connection closes
 	while read -ru3 -t"${config[timeout]:-300}"; do
 		REPLY="${REPLY/$'\r'/}"
-		((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config['server']}"
+		((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config[server]}"
 
 		## if going over proxy
 		if ((${#proxy})); then
@@ -104,10 +104,10 @@ tinyirc() {
 			unset -v proxy
 
 		## ping/pong
-		elif [[ ${REPLY} = PING* ]]; then
+		elif [[ $REPLY = PING* ]]; then
 			printf '%s\n' "${REPLY/I/O}" >&3
 		## resend ping request ?
-		elif [[ ${REPLY} = :+([a-zA-Z0-9_.-])\ PONG* && ${config[infiniping]:-0} -gt 0 ]]; then
+		elif [[ $REPLY = :+([a-zA-Z0-9_.-])\ PONG* && ${config[infiniping]:-0} -gt 0 ]]; then
 			{
 				sleep ${config[infiniping]:-5}
 				printf 'PING %s\n' "$RANDOM" >&3
@@ -184,11 +184,11 @@ tinyirc() {
 					fi
 				;;
 				461) ## nick is malformed
-					[[ "${line[3]}" = nick ]] && printf 'NICK bbot2%s\n' "$((RANDOM%100))" >&3
+					[[ ${line[3]} = nick ]] && printf 'NICK bbot2%s\n' "$((RANDOM%100))" >&3
 				;;
 
 				NICK)
-					if [[ $line = :$mynick || $line = :$mynick!* ]]; then
+					if [[ $line = :"$mynick" || $line = :"$mynick"!* ]]; then
 						mynick="${line[2]/:/}"
 						_log "nick changed to '${line[2]/:/}'" info
 					elif [[ $line  = ":${config[nick]}" || $line = ":${config[nick]}!*" ]]; then
