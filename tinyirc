@@ -43,8 +43,8 @@ _connect() {
 }
 
 gen_nick() {
-	local n; local nn
-	nn=( $(echo "$1" | grep -Eo '.') )
+	local n nn i
+	read -ra nn < <(printf '%s\n' "$1" | grep -Eo '.')
 	while ((${#nn[@]})); do
 		i=$(( RANDOM % ${#nn[@]}))
 		n+="${nn[i]}"
@@ -128,6 +128,7 @@ tinyirc() {
 				;;
 				005)	# parse some server infos
 					declare -gA server_config
+					local item value
 					read -ra array <<<"$REPLY"
 					for i in "${array[@]:3}"; do
 						if [[ $i = :* ]]; then
