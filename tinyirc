@@ -192,6 +192,7 @@ tinyirc() {
 					elif [[ $line  = ":${config[nick]}" || $line = ":${config[nick]}!*" ]]; then
 						printf 'NICK %s\n' "${config[nick]}" >&3
 					fi
+				;;
 			esac
 
 			# extract nick, ident and host
