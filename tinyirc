@@ -196,11 +196,11 @@ tinyirc() {
 				;;
 			esac
 
+			## load user modules
+			{
 			# extract nick, ident and host
 			IFS=!@ read -r nick ident host <<<"${line/:/}"
 
-			## load user modules
-			{
 			for mod in ${modules[${line[1]}]}; do
 				[[ $mod && -f $mydir/modules/${mod}.module ]] && source "$mydir/modules/${mod}.module"
 			done
