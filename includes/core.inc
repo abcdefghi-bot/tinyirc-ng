@@ -82,9 +82,7 @@ has_access() {
 	[[ -e ${config[mydir]}/data/${config[server]}/access ]] || > "${config[mydir]}/data/${config[server]}/access"
 
 	while IFS=: read -r u level; do
-		if ((${#u} && ${#level})); then
-			[[ ${user,,} =~ "${u,,}" && $level -le $reqlevel ]] && return
-		fi
+		[[ ${user,,} =~ ${u,,} && ${level:-10000} -le $reqlevel ]] && return
 	done < "${config[mydir]}/data/${config[server]}/access"
 	return 1
 }
