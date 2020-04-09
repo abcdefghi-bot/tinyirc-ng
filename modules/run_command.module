@@ -5,7 +5,17 @@ execute_command() {
 	shift 3
 
 	case "$prog" in
-		python) aprog=(python '-c' "$*");;
+		python)
+			if command -v python; then
+				aprog=(python '-c' "$*")
+			elif command -v python2; then
+				aprog=(python2 '-c' "$*")
+			elif command -v python3; then
+				aprog=(python3 '-c' "$*")
+			else
+				return 1
+			fi
+		;;
 		bash) aprog=(eval "$@");;
 		sudo) aprog=(sudo bash -c "eval '$*'");;
 		*) return;;
