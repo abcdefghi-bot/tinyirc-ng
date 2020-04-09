@@ -117,6 +117,6 @@ isop() {
 		source "$mydir/tmp/${config[server]}/nicklist/$chan"
 		[[ ${oplist[$nick]} ]] && return
 	fi
-	return 1o
+	return 1
 
 }
