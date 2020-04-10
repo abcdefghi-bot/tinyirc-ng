@@ -57,9 +57,7 @@ gen_nick() {
 
 # main function
 tinyirc() {
-	local var include skip REPLY mod
-	local line nick ident host var i chan array
-	local rnick="bbot${RANDOM}"
+	local var include skip REPLY mod line nick ident host var i chan array rnick="bbot${RANDOM}"
 
 	## load includes
 	for i in "${mydir}"/includes/*.inc; do source "$i"; done
@@ -75,7 +73,7 @@ tinyirc() {
 		## send proxy magics
 		printf 'CONNECT %s:%s HTTP/1.0\n\n' "${config[server]}" "${config[port]}" >&3
 
-	## http direct connect
+	## direct connect
 	else
 		_connect "${config[server]}" "${config[port]}" || return
 		_irc_login "$rnick" >&3
@@ -88,13 +86,12 @@ tinyirc() {
 	# start background daemons
 	for daemon in "${daemons[@]}"; do
 		var=( "${mydir}"/daemons/*"${daemon}"*.daemon )
-		[[ ${#var[@]} -eq 1 && -e $var ]] && source "$var"
+		[[ ${#var[@]} -eq 1 && -f $var ]] && source "$var"
 		running_daemons+=($!)
 	done
 
 	# read until connection closes
-	while read -ru3 -t"${config[timeout]:-300}"; do
-		REPLY="${REPLY/$'\r'/}"
+	while IFS=$'\r\n' read -ru3 -t"${config[timeout]:-300}"; do
 		((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config[server]}"
 
 		## if going over proxy
