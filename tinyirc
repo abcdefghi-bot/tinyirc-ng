@@ -110,7 +110,7 @@ tinyirc() {
 		## resend ping request ?
 		elif [[ $REPLY = :+([a-zA-Z0-9_.-])\ PONG* && ${config[infiniping]:-0} -gt 0 ]]; then
 			{
-				sleep ${config[infiniping]:-5}
+				sleep "${config[infiniping]:-5}"
 				printf 'PING %s\n' "$RANDOM" >&3
 			} &
 		## parse other input
@@ -172,7 +172,7 @@ tinyirc() {
 						mynick=${config[nick]}
 						printf 'NICK %s\n' "${config[nick]}" >&3
 					else
-						printf 'NICK bbot1%s\n' "$(($RANDOM%100))" >&3
+						printf 'NICK bbot1%s\n' "$((RANDOM%100))" >&3
 					fi
 				;;
 				303) ## ISON reply, keep checking ?
@@ -240,7 +240,7 @@ touch "${config[mydir]}/data/${config[server]}/autoop"
 [[ "${config[server]:-nil}" = nil || "${config[port]:-nil}" = nil ]] && usage
 
 ## export proxy value, if any
-if [[ ! -z "${config[http_proxy]}" ]]; then
+if [[ -n ${config[http_proxy]} ]]; then
 	export http_proxy="${config[http_proxy]}"
 	export https_proxy="${config[http_proxy]}"
 	export ftp_proxy="${config[http_proxy]}"
