@@ -159,6 +159,7 @@ hecketer() {
 				i="$(( RANDOM % ${#ask_choices[@]}))"
 				choice="${ask_choices[$i]}"
 				while read -r; do answers+=("$REPLY"); done < <(ask "$choice" "$q" "$ticks")
+				((${#answers[@]})) && break
 				unset -v ask_choices[$i]
 				ask_choices=( ${ask_choices[@]} )
 			done
