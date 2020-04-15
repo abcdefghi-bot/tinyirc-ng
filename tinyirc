@@ -91,7 +91,7 @@ tinyirc() {
 	done
 
 	# read until connection closes
-	while IFS=$'\r\n' read -ru3 -t"${config[timeout]:-300}"; do
+	while IFS=$'\r' read -ru3 -t"${config[timeout]:-300}" REPLY; do
 		((${config[irc_verbosity]:-0})) && _log "$REPLY" "${config[server]}"
 
 		## if going over proxy
