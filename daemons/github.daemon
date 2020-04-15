@@ -30,14 +30,14 @@ retrieve() {
 			jq ".[] | .number" <<<"${json[@]}" > /dev/null 2>&1 || { _log "$project: jq, pull failed." github; return 1; }
 			mapfile -t keys < <(jq '.[] | .number' <<<"${json[@]}")
 			mapfile -t logins < <(jq '.[] | .user.login' <<<"${json[@]}")
-			mapfile -t messages < <(jq '.[] | .body' <<<"${json[@]}")
-			mapfile -t titles < <(jq '.[] | .title' <<<"${json[@]}")
+			mapfile -t messages < <(jq -r '.[] | .body' <<<"${json[@]}")
+			mapfile -t titles < <(jq -r '.[] | .title' <<<"${json[@]}")
 		;;
 		commit)
 			jq '.[] | .sha' <<<"${json[@]}" > /dev/null 2>&1 || { _log "$project: jq, commit failed." github; return 1; }
 			mapfile -t keys < <(jq '.[] | .sha' <<<"${json[@]}")
 			mapfile -t logins < <(jq '.[] | .author.login' <<<"${json[@]}")
-			mapfile -t messages < <(jq '.[] | .commit.message' <<<"${json[@]}")
+			mapfile -t messages < <(jq -r '.[] | .commit.message' <<<"${json[@]}")
 		;;
 	esac
 
