@@ -219,7 +219,7 @@ hecketer() {
 }
 
 if [[ "${hecketer[enabled]:-False}" =~ (T|t|Y|y|1) ]]; then
-	if [[ ${line[3]} = :"${mynick}"* && ! -z ${line[*]:4} ]]; then
+	if [[ ${line[3]} = :"${mynick}"* && ! -z ${line[*]:4} || ${line[*]:4} = *"${mynick}"* ]]; then
 	{
 		((RANDOM>RANDOM)) && cobe_rebuild
 		 hecketer
