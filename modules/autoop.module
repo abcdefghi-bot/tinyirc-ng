@@ -3,11 +3,24 @@
 IFS=! read -r nick _ <<<"${line[0]/:/}"
 
 {
-if has_access "${line[0]/:/}" 10; then
-	op "${line[2]/:/}" "${nick}"
-elif has_access "${line[0]/:/}" 100; then
-	halfop "${line[2]/:/}" "${nick}"
-elif has_access "${line[0]/:/}" 150; then
-	voice "${line[2]/:/}" "${nick}"
+modes= args=()
+if has_access "${line[0]/:/}" 0; then
+        modes+=q
+        args+=("$nick")
 fi
+
+if has_access "${line[0]/:/}" 9999; then
+        modes+=b
+        args+=("$mask")
+elif has_access "${line[0]/:/}" 150; then
+        modes+=v
+        args+=("$nick")
+elif has_access "${line[0]/:/}" 100; then
+        modes+=h
+        args+=("$nick")
+elif has_access "${line[0]/:/}" 10; then
+        modes+=o
+        args+=("$nick")
+fi
+((${#modes})) && printf 'MODE %s +%s %s\n' "${line[2]/:/}" "$modes" "${args[*]}"
 } >&3
