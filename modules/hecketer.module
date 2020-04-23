@@ -200,7 +200,7 @@ hecketer() {
 
 				((${#answer} && ${#answer} < 384)) || continue
 				[[ $answer = "$1" ]] && continue
-				action "${line[2]}" '.oO( ... thinks ... )' >&3
+				#action "${line[2]}" '.oO( ... thinks ... )' >&3
 				printf '%s\n' "$answer"
 				break
 			done
