@@ -7,6 +7,8 @@ declare mydir="${0%/*}" running_daemons=()
 declare uname; read -r uname < <(uname)
 declare version; read -r _ version _ < <(cd "$mydir" && git log -1 | head -n1)
 version="${version:0:7}"
+declare -A config
+config[mydir]=$mydir
 
 usage() {
 	cat << EOF
@@ -29,6 +31,7 @@ _exit() {
 }
 
 _irc_login() {
+	[[ ${config[ident]} ]] || config[ident]=${config[nick]}
 	# send server password if any
 	[[ ${config[password]:-nil} = nil ]] || printf 'PASS %s\n' "${config[password]}"
 	## send user/nick infos
@@ -58,10 +61,10 @@ gen_nick() {
 # main function
 tinyirc() {
 	local var include skip REPLY mod line nick ident host var i chan array rnick="bbot${RANDOM}"
+	[[ -d $mydir/tmp/${config[server]} ]] || mkdir -p "$mydir/tmp/${config[server]}"
 
 	## load includes
 	for i in "${mydir}"/includes/*.inc; do source "$i"; done
-
 	## clean tmp files
 	find "${mydir}/tmp/${config[server]}" -type f -delete
 
@@ -76,7 +79,7 @@ tinyirc() {
 	## direct connect
 	else
 		_connect "${config[server]}" "${config[port]}" || return
-		_irc_login "$rnick" >&3
+		_irc_login "${config[nick]}" >&3
 	fi
 
 	# set traps
@@ -98,11 +101,12 @@ tinyirc() {
 		if ((${#proxy})); then
 			## return if proxy error
 			[[ $REPLY =~ ^HTTP/1.[0-1]\ 200 ]] || return
-			_irc_login "$rnick" >&3
+			_irc_login "${config[nick]}" >&3
 			unset -v proxy
 
 		## ping/pong
 		elif [[ $REPLY = PING* ]]; then
+			_log "$REPLY <-> PONG" "${config[server]}"
 			printf '%s\n' "${REPLY/I/O}" >&3
 		## resend ping request ?
 		elif [[ $REPLY = :+([a-zA-Z0-9_.-])\ PONG* && ${config[infiniping]:-0} -gt 0 ]]; then
@@ -145,7 +149,7 @@ tinyirc() {
 						printf 'MODE %s %s\n' "${line[2]}" "${config[umodes]:-+ixF}"
 						# join chans
 						((${#config[join]})) && printf 'JOIN %s\n' "${config[join]}"
-						[[ $mynick = "${config[nick]}" ]] || printf 'ISON %s\n' "${config[nick]:-bbot}"
+						[[ $mynick = "${config[nick]}" ]] || printf 'ISON %s\n' "${config[nick]}"
 						((${config[infiniping]:-0})) && printf 'PING %s\n' "$RANDOM"
 					} >&3
 
@@ -176,7 +180,7 @@ tinyirc() {
 					if [[ ${line[3]} = : ]]; then
 						printf 'NICK %s\n' "${config[nick]:-bbot}" >&3
 					elif [[ $mynick != "${config[nick]}" ]]; then
-						{ sleep 180; printf 'ISON %s\n' "${config[nick]:-bbot}" >&3; } &
+						{ sleep 180; printf 'ISON %s\n' "${config[nick]}" >&3; } &
 					fi
 				;;
 				461) ## nick is malformed
@@ -207,7 +211,7 @@ tinyirc() {
 	done
 }
 
-while getopts c:j:n:p:s:vx:z:P:S:BZ:O: var; do
+while getopts c:j:n:p:s:vx:z:P:S:BZ:O:I var; do
 	case "$var" in
 		c) declare config_file="$OPTARG";;
 		Z) declare proxy_timeout="$OPTARG";;
@@ -218,7 +222,7 @@ while getopts c:j:n:p:s:vx:z:P:S:BZ:O: var; do
 		p) config[port]="$OPTARG";;
 		s) config[server]="$OPTARG";;
 		x) config[umodes]="$OPTARG";;
-
+		I) config[infinite]=1;;
 		v) config[irc_verbosity]=1;;
 
 		P) config[password]="$OPTARG";;
@@ -282,5 +286,6 @@ cobe_rebuild() {
 while :; do
 	((${hecketer[use_cobe]:-0})) && cobe_rebuild
 	tinyirc
+	[[ ${config[infinite]} ]] || exit 0
 	sleep 5
 done
