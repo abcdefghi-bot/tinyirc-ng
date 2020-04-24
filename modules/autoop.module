@@ -1,26 +1,34 @@
 #!/usr/bin/env bash
 
-IFS=! read -r nick _ <<<"${line[0]/:/}"
+#IFS=! read -r nick _ <<<"${line[0]/:/}"
 
-{
-modes= args=()
-if has_access "${line[0]/:/}" 0; then
-        modes+=q
-        args+=("$nick")
-fi
+_mod_autoop() {
+	local modes= args=()
+	local host=${line/:/}; host=${host,,}
+	local chan=${line[2]}
+	[[ $chan = :* ]] && chan=${chan/:/}
 
-if has_access "${line[0]/:/}" 9999; then
-        modes+=b
-        args+=("$mask")
-elif has_access "${line[0]/:/}" 150; then
-        modes+=v
-        args+=("$nick")
-elif has_access "${line[0]/:/}" 100; then
-        modes+=h
-        args+=("$nick")
-elif has_access "${line[0]/:/}" 10; then
-        modes+=o
-        args+=("$nick")
-fi
-((${#modes})) && printf 'MODE %s +%s %s\n' "${line[2]/:/}" "$modes" "${args[*]}"
-} >&3
+	if has_access "${host}" 0; then
+		modes+=q
+		args+=("$nick")
+	fi
+
+	if has_access "${host}" 10; then
+		modes+=o
+		args+=("$nick")
+	elif has_access "${host}" 100; then
+		modes+=h
+		args+=("$nick")
+	elif has_access "${host}" 150; then
+		modes+=v
+		args+=("$nick")
+	elif has_access "${host}" 9999; then
+		IFS=$':!' read -r _ _ mask <<<"$line"
+		modes+=b
+		args+=("*!$mask")
+		printf 'KICK %s %s :kthxbai\n' "${line[2]/:/}" "${nick}"
+	fi
+	((${#modes})) && printf 'MODE %s +%s %s\n' "${line[2]/:/}" "$modes" "${args[*]}"
+}
+
+_mod_autoop >&3
