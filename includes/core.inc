@@ -69,8 +69,7 @@ is_flood() {
 
 ## simple log function
 ## $1: "level", $2: message
-#_log() { local i="${2,,}"; printf "%s/%s/%s\t%s\n" "$$" "$(date +%H%M%S)" "${i:-info}" "$1" >&2; }
-_log() { local i="${2,,}"; printf "%s/%s\t%s\n" "$(date +%H%M%S)" "${i:-info}" "$1" >&2; }
+_log() { local i="${2,,}"; printf "%s/%s\t%s\n" "$(date +%H%M%S)" "${i:-${config[server]}}" "$1" >&2; }
 
 # Usage: inarray "$value" "${array[@]}"
 inarray() { local n=$1 h; shift; for h; do [[ $n = "$h" ]] && return; done; return 1; }
