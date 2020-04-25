@@ -122,6 +122,11 @@ tinyirc() {
 
 			## core IRC thing
 			case "${line[1]}" in
+				JOIN)
+					if [[ $line = :"${mynick}"!* ]]; then
+						printf 'MODE %s +heI %s %s %s\n' "${line[2]/:/}" "$mynick" "$mynick" "$mynick" >&3
+					fi
+				;;
 				PRIVMSG)
 					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
 				;;
