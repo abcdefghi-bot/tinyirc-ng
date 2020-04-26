@@ -229,6 +229,7 @@ while getopts c:j:n:p:s:vx:z:P:S:BZ:O:I var; do
 		x) config[umodes]="$OPTARG";;
 		I) config[infinite]=1;;
 		v) config[irc_verbosity]=1;;
+		j) config[join]="$OPTARG";;
 
 		P) config[password]="$OPTARG";;
 		S) config[sleep]="$OPTARG";;
