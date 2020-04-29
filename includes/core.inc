@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Usage: inarray "$value" "${array[@]}"
+in_array() { local n=$1 h; shift; for h; do [[ $n = "$h" ]] && return; done; return 1; }
+
 #
 # rehash(): allows the bot to
 #
@@ -11,7 +14,6 @@ rehash() {
 	[[ -z $config_file ]] && return
 
 	source "$config_file"
-	#local tempfile i
 
 	## change nickname ?
 	printf 'NICK %s\n' "${config[nick]}" >&3
@@ -22,7 +24,7 @@ rehash() {
 	done
 
 	## join new chan(s)
-	join "${config[join]// /,}"
+	join "${config[join]}"
 
 	_log 'rehash done'
 }
@@ -71,8 +73,6 @@ is_flood() {
 ## $1: "level", $2: message
 _log() { local i="${2,,}"; printf "%s/%s\t%s\n" "$(date +%H%M%S)" "${i:-${config[server]}}" "$1" >&2; }
 
-# Usage: inarray "$value" "${array[@]}"
-inarray() { local n=$1 h; shift; for h; do [[ $n = "$h" ]] && return; done; return 1; }
 
 ## XXX replace with isop
 has_access() {
@@ -86,16 +86,17 @@ has_access() {
 	return 1
 }
 
+# $1 'someopti'
+# $2 ('someoption','anotheroption')
 is_option() {
-	# $1 'someopti'
-	# $@ ('someoption' 'anotheroption')
-	local user_option="$1" match_options=(); shift
-	for option in $@; do
-		#[[ "${option,,}" =~ ^${user_option,,} ]] && { printf '%s\n' "$option"; return 0;}
-		[[ ${option,,} =~ ^"${user_option,,}" ]] && match_options+=("$option")
+	local option="$1" o match=()
+	shift
+	for o in $@; do
+		[[ ${o,,} = ^"${option,,}" ]] && match+=("$o")
 	done
-	printf '%s\n' ${match_options[@]}
-	((${#match_options[@]} == 1)) || return 1
+	if ((${#match[@]})); then printf '%s\n' "${match[@]}"
+	else return 1
+	fi
 }
 
 mydate() {
@@ -109,11 +110,9 @@ mydate() {
 }
 
 isop() {
-	local chan=$2 nick=$1
-	if [[ -f $mydir/tmp/${config[server]}/nicklist/$chan ]]; then
-		source "$mydir/tmp/${config[server]}/nicklist/$chan"
-		[[ ${oplist[$nick]} ]] && return
-	fi
+	read -ra array <<<"${oplist[$2]}"
+	for i in "${array[@]}"; do
+		[[ $i = "$1" ]] && return 0
+	done
 	return 1
-
 }

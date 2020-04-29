@@ -9,7 +9,7 @@ declare version; read -r _ version _ < <(cd "$mydir" && git log -1 | head -n1)
 version="${version:0:7}"
 declare -A config
 config[mydir]=$mydir
-
+declare -A nicklist oplist holist volist
 usage() {
 	cat << EOF
 
@@ -56,6 +56,65 @@ gen_nick() {
 		nn=( ${nn[*]} )
 	done
 	printf '%s\n' "$n"
+}
+
+array_delete() {
+	local items i array=()
+	read -ra items <<<"$2"
+	for i in "${items[@]}"; do
+		[[ $1 = "$i" ]] || array+=("$i")
+	done
+	printf '%s\n' "${array[*]}"
+}
+
+update_lists_if_exists() {
+	local nick=$1 newnick=$2 c
+	for c in "${!nicklist[@]}"; do
+		if in_array "$nick" "${nicklist[$c]}"; then
+			nicklist[$c]="${nicklist[$chan]} $newnick"
+		fi
+	done
+
+	for c in "${!oplist[@]}"; do
+		if in_array "$nick" "${oplist[$c]}"; then
+			oplist[$c]="${oplist[$chan]} $newnick"
+		fi
+	done
+
+	for c in "${!holist[@]}"; do
+		if in_array "$nick" "${holist[$c]}"; then
+			holist[$c]="${holist[$chan]} $newnick"
+		fi
+	done
+
+	for c in "${!volist[@]}"; do
+		if in_array "$nick" "${volist[$c]}"; then
+			volist[$c]="${volist[$chan]} $newnick"
+		fi
+	done
+}
+
+delete_from_lists() {
+	local nick=$1 chan=$2 c
+	for c in "${!nicklist[@]}"; do
+		[[ $chan && $c = "$chan" ]] && continue
+		nicklist[$c]="$(array_delete "$nick" "${nicklist[$c]}")"
+	done
+
+	for c in "${!oplist[@]}"; do
+		[[ $chan && $c = "$chan" ]] && continue
+		oplist[$c]="$(array_delete "$nick" "${oplist[$c]}")"
+	done
+
+	for c in "${!holist[@]}"; do
+		[[ $chan && $c = "$chan" ]] && continue
+		holist[$c]="$(array_delete "$nick" "${holist[$c]}")"
+	done
+
+	for c in "${!volist[@]}"; do
+		[[ $chan && $c = "$chan" ]] && continue
+		volist[$c]="$(array_delete "$nick" "${volist[$c]}")"
+	done
 }
 
 # main function
@@ -117,54 +176,96 @@ tinyirc() {
 		## parse other input
 		elif [[ $REPLY = :* ]]; then
 
+			# extract nick, ident and host
+			IFS=!@ read -r nick ident host <<<"${line/:/}"
+
 			# split line to array
 			read -ra line <<<"$REPLY"
 
 			## core IRC thing
 			case "${line[1]}" in
-				JOIN)
-					if [[ $line = :"${mynick}"!* ]]; then
-						printf 'MODE %s +heI %s %s %s\n' "${line[2]/:/}" "$mynick" "$mynick" "$mynick" >&3
-					fi
-				;;
-				PRIVMSG)
-					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
-				;;
-				005)	# parse some server infos
-					declare -gA server_config
-					local item value
-					read -ra array <<<"$REPLY"
-					for i in "${array[@]:3}"; do
-						if [[ $i = :* ]]; then
-							break
-						elif [[ $i = *=* ]]; then
-							IFS=\= read -r item value <<<"$i"
-							server_config[$item]=$value
-						else
-							server_config[$i]=1
-						fi
+				MODE)
+					local chars="${line[3]}" item_count=3 char sign i
+					for ((i=0;i<${#chars};i++)); do
+						case "${chars:$i:1}" in
+							\+|\-)
+								sign="${chars:$i:1}"
+							;;
+							c|i|m|n|p|s|t|C|M|R)
+								continue
+							;;
+							b|j|k|l|E|I|J)
+								((item_count++));
+								continue
+							;;
+
+							o) # (de)op
+								((item_count++)); nick="${line[$item_count]}"
+								read -ra foo <<<"${oplist[$chan]}"
+								if [[ $sign = \+ ]]; then foo+=("$nick")
+								else read -ra foo < <(array_delete "$nick" "${foo[*]}")
+								fi
+								oplist[$chan]="${foo[*]}"
+							;;
+							h) # (de)halfop
+								((item_count++)); nick="${line[$item_count]}"
+								read -ra foo <<<"${holist[$chan]}"
+								if [[ $sign = \+ ]]; then foo+=("$nick")
+								else read -ra foo < <(array_delete "$nick" "${foo[*]}")
+								fi
+								holist[$chan]="${foo[*]}"
+							;;
+							v) # (de)voice
+								((item_count++)); nick="${line[$item_count]}"
+								read -ra foo <<<"${volist[$chan]}"
+								if [[ $sign = \+ ]]; then foo+=("$nick")
+								else read -ra foo < <(array_delete "$nick" "${foo[*]}")
+								fi
+								volist[$chan]="${foo[*]}"
+							;;
+						esac
 					done
 				;;
-
-				376|422) ## end of MOTD, POTD or no MOTD
-					declare -g mynick="${line[2]}"
-
-					{ # send stuff to server
-						# usermodes
-						printf 'MODE %s %s\n' "${line[2]}" "${config[umodes]:-+ixF}"
-						# join chans
-						((${#config[join]})) && printf 'JOIN %s\n' "${config[join]}"
-						[[ $mynick = "${config[nick]}" ]] || printf 'ISON %s\n' "${config[nick]}"
-						((${config[infiniping]:-0})) && printf 'PING %s\n' "$RANDOM"
-					} >&3
-
-				;;
-				QUIT)	# regain nick
-					if [[ ${line} = :"${config[nick]}"!* ]]; then
-						printf 'NICK %s\n' "${config[nick]}" >&3
+				JOIN)
+					chan=${line[2]/:/}
+					if [[ $line = :"${mynick}"!* ]]; then
+						nicklist[$chan]= oplist[$chan]= holist[$chan]= volist[$chan]=
+					else
+						nicklist[$chan]="${nicklist[$chan]} $nick"
 					fi
 				;;
-
+				PART|KICK)
+					chan=${line[2]}
+					[[ $chan = :* ]] && chan=${chan/:/}
+					delete_from_lists "$nick" "$chan"
+				;;
+				353)
+					read -r _ _ _ _ chan _ <<<"$REPLY"
+					nicks=(${REPLY##*:})
+					read -ra array <<<"${nicklist[$chan]}"
+					array=(${nicklist["$chan"]})
+					for n in "${line[@]:5}"; do
+						[[ $n = :* ]] && n=${n/$':'/}
+						on=$n
+						n=${n/$'@'/}; n=${n/$'%'/}; n=${n/$'+'/};
+						n=${n/$'&'/}; n=${n/$'~'/}; n=${n/$'*'/};
+						case $on in
+							\@*) read -ra foo <<<"${oplist[$chan]}"
+								   foo+=("$n")
+								   oplist[$chan]=${foo[*]}
+							;;
+							\%*) read -ra foo <<<"${holist[$chan]}"
+								   foo+=("$n")
+								   holist[$chan]=${foo[*]}
+							;;
+							\+*) read -ra foo <<<"${volist[$chan]}"
+								   foo+=("$n")
+								   volist[$chan]=${foo[*]}
+							;;
+						esac
+					done
+					nicklist[$chan]="${array[*]}"
+				;;
 				433) ## nick is already used
 					if [[ ${line[3]} = "${config[nick]}" ]]; then
 						printf 'ISON %s\n' "${config[nick]}" >&3
@@ -191,27 +292,74 @@ tinyirc() {
 				461) ## nick is malformed
 					[[ ${line[3]} = nick ]] && printf 'NICK bbot2%s\n' "$((RANDOM%100))" >&3
 				;;
+				001)
+						{
+						# usermodes
+						printf 'MODE %s %s\n' "${line[2]}" "${config[umodes]:-+ixF}"
+						# infiniping
+						((${config[infiniping]:-0})) && printf 'PING %s\n' "$RANDOM"
+						} >&3
+				;;
+				005)	# parse some server infos
+					declare -gA server_config
+					local item value
+					read -ra array <<<"$REPLY"
+					for i in "${array[@]:3}"; do
+						if [[ $i = :* ]]; then
+							break
+						elif [[ $i = *=* ]]; then
+							IFS=\= read -r item value <<<"$i"
+							server_config[$item]=$value
+						else
+							server_config[$i]=1
+						fi
+					done
+				;;
+				376|422) ## end of MOTD, POTD or no MOTD
+					declare -g mynick="${line[2]}"
 
-				NICK)
-					if [[ $line = :"$mynick" || $line = :"$mynick"!* ]]; then
-						mynick="${line[2]/:/}"
-						_log "nick changed to '${line[2]/:/}'" info
-					elif [[ $line  = ":${config[nick]}" || $line = ":${config[nick]}!*" ]]; then
+					{ # send stuff to server
+						# join chans
+						((${#config[join]})) && printf 'JOIN %s\n' "${config[join]}"
+						# regain nick?
+						[[ $mynick = "${config[nick]}" ]] || printf 'ISON %s\n' "${config[nick]}"
+					} >&3
+
+				;;
+				PRIVMSG)
+					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
+				;;
+				QUIT)	# regain nick
+					delete_from_lists "$nick"
+					if [[ ${line} = :"${config[nick]}"!* ]]; then
 						printf 'NICK %s\n' "${config[nick]}" >&3
 					fi
+				;;
+
+				NICK)
+					newnick="${line[2]/:/}"
+					#if [[ $line = ":$mynick" || $line = :"$mynick"!* ]]; then
+					if [[ ${nick/:/} = "$mynick" ]]; then
+						mynick=$newnick
+						_log "nick changed to '$newnick'" info
+
+					elif [[ $line = :"${config[nick]}"!* ]]; then
+						printf 'NICK %s\n' "${config[nick]}" >&3
+					fi
+
+					update_lists_if_exists "$nick" "$newnick"
+					delete_from_lists "$nick"
 				;;
 			esac
 
 			## load user modules
-			{
-			# extract nick, ident and host
-			IFS=!@ read -r nick ident host <<<"${line/:/}"
-
-			for mod in ${modules[${line[1]}]}; do
-				[[ $mod && -f $mydir/modules/${mod}.module ]] && source "$mydir/modules/${mod}.module"
-			done
-			} &
-
+			if ((${config[modules]:-0})); then
+				{
+				for mod in ${modules[${line[1]}]}; do
+					[[ $mod && -f $mydir/modules/${mod}.module ]] && source "$mydir/modules/${mod}.module"
+				done
+				} &
+			fi
 		fi
 	done
 }
