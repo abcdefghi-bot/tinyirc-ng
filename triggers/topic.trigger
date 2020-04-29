@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
-has_access "$line" 50 && topic "${line[2]}" "${line[*]:5}" >&3
+if has_access "$line" 50 || isop "${nick/:/}" "${line[2]}"; then
+	topic "${line[2]}" "${line[*]:5}" >&3
+fi
