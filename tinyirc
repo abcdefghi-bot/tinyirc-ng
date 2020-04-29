@@ -338,7 +338,6 @@ tinyirc() {
 
 				NICK)
 					newnick="${line[2]/:/}"
-					#if [[ $line = ":$mynick" || $line = :"$mynick"!* ]]; then
 					if [[ ${nick/:/} = "$mynick" ]]; then
 						mynick=$newnick
 						_log "nick changed to '$newnick'" info
