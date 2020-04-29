@@ -232,6 +232,9 @@ tinyirc() {
 						nicklist[$chan]= oplist[$chan]= holist[$chan]= volist[$chan]=
 					else
 						nicklist[$chan]="${nicklist[$chan]} $nick"
+						if [[ ${config[antiflood]:-nil = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
+							 isop "$mynick" "$chan" && kick "$chan" "$ewnick" "kthxbai" >&3
+						fi
 					fi
 				;;
 				PART|KICK)
@@ -326,7 +329,10 @@ tinyirc() {
 					} >&3
 
 				;;
-				PRIVMSG)
+				PRIVMSG|NOTICE)
+					if [[ ${config[antiflood]:-nil = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
+						 isop "$mynick" "$chan" && kick "$chan" "$ewnick" "kthxbai" >&3
+					fi
 					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
 				;;
 				QUIT)	# regain nick
@@ -344,6 +350,10 @@ tinyirc() {
 
 					elif [[ $line = :"${config[nick]}"!* ]]; then
 						printf 'NICK %s\n' "${config[nick]}" >&3
+					else
+						if [[ ${config[antiflood]:-nil = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
+							 isop "$mynick" "$chan" && kick "$chan" "$ewnick" "kthxbai" >&3
+						fi
 					fi
 
 					update_lists_if_exists "$nick" "$newnick"

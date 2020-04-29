@@ -31,10 +31,10 @@ rehash() {
 
 ## basic antiflood
 ## $1: mask; $2: target
-## $3: count; $4: timeout
+## $3: count:timeout
 declare -A antiflood
 is_flood() {
-	local key= row=() trigger ticks
+	local key= row=() trigger=$3 ticks
 	read -r ticks < <(printf '%(%s)T' -1)
 
 	## set key from "$1", "$2"
@@ -42,8 +42,7 @@ is_flood() {
 	else key="${mask}:${line[2]/:/}"; fi
 
 	## set custom trigger from "$3", "$4"
-	if [[ $3 && $4 ]]; then trigger="$3:$4"
-	else trigger="${config[antiflood]:-5:3}"; fi
+	((${#trigger})) || trigger="${config[antiflood]:-5:3}"; fi
 
 	# existing user
 	if ((${#antiflood["$key"]})); then
