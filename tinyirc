@@ -229,11 +229,11 @@ tinyirc() {
 				JOIN)
 					chan=${line[2]/:/}
 					if [[ $line = :"${mynick}"!* ]]; then
-						nicklist[$chan]= oplist[$chan]= holist[$chan]= volist[$chan]=
+						nicklist[$chan]='' oplist[$chan]='' holist[$chan]='' volist[$chan]=''
 					else
 						nicklist[$chan]="${nicklist[$chan]} $nick"
-						if [[ ${config[antiflood]:-nil = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
-							 isop "$mynick" "$chan" && kick "$chan" "$ewnick" "kthxbai" >&3
+						if [[ ${config[antiflood]:-nil} = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
+							 isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
 						fi
 					fi
 				;;
@@ -329,11 +329,19 @@ tinyirc() {
 					} >&3
 
 				;;
-				PRIVMSG|NOTICE)
-					if [[ ${config[antiflood]:-nil = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
-						 isop "$mynick" "$chan" && kick "$chan" "$ewnick" "kthxbai" >&3
+				PRIVMSG)
+					if [[ ${config[antiflood]:-nil} = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
+						 isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
 					fi
 					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
+					if [[ ${line[3]} = ":${config[trigger]:-.}"* ]]; then
+						triggerbot "${line[@]:4}"
+					fi
+				;;
+				NOTICE)
+					if [[ ${config[antiflood]:-nil} = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
+						 isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
+					fi
 				;;
 				QUIT)	# regain nick
 					delete_from_lists "$nick"
@@ -351,8 +359,8 @@ tinyirc() {
 					elif [[ $line = :"${config[nick]}"!* ]]; then
 						printf 'NICK %s\n' "${config[nick]}" >&3
 					else
-						if [[ ${config[antiflood]:-nil = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
-							 isop "$mynick" "$chan" && kick "$chan" "$ewnick" "kthxbai" >&3
+						if [[ ${config[antiflood]:-nil} = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
+							 isop "$mynick" "$chan" && kick "$chan" "$newnick" "kthxbai" >&3
 						fi
 					fi
 
@@ -386,7 +394,6 @@ while getopts c:j:n:p:s:vx:z:P:S:BZ:O:I var; do
 		x) config[umodes]="$OPTARG";;
 		I) config[infinite]=1;;
 		v) config[irc_verbosity]=1;;
-		j) config[join]="$OPTARG";;
 
 		P) config[password]="$OPTARG";;
 		S) config[sleep]="$OPTARG";;
