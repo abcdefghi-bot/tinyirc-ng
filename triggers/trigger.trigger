@@ -13,13 +13,13 @@ trigger() {
 			array="${array##*/}"; array="${array%.*}"
 			case "$_hint" in
 				enable)
-					if ! inarray "$array" ${triggers_enabled[@]}; then
+					if ! in_array "$array" ${triggers_enabled[@]}; then
 						effective+=("${array}")
 						triggers_enabled+=(${array})
 					fi
 				;;
 				disable)
-					if inarray "$array" ${triggers_enabled[@]}; then
+					if in_array "$array" ${triggers_enabled[@]}; then
 						for ((x=0;x<${#triggers_enabled[@]};x++)); do
 							if [[ ${triggers_enabled[$x]} = ${array} ]]; then
 								unset triggers_enabled[$x]
