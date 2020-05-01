@@ -12,7 +12,7 @@ _help() {
 	for x in "${available[@]}"; do
 		[[ -f $x ]] || continue
 		x=${x##*/}; x=${x%.*}
-		if inarray "${x}" ${triggers_enabled[@]}; then var+=("*${x}*")
+		if in_array "${x}" ${triggers_enabled[@]}; then var+=("*${x}*")
 		else var+=("${x}")
 		fi
 	done
