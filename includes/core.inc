@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Usage: inarray "$value" "${array[@]}"
+# Usage: in_array "$value" "${array[@]}"
 in_array() { local n=$1 h; shift; for h; do [[ $n = "$h" ]] && return; done; return 1; }
 
 #
@@ -42,7 +42,7 @@ is_flood() {
 	else key="${mask}:${line[2]/:/}"; fi
 
 	## set custom trigger from "$3", "$4"
-	((${#trigger})) || trigger="${config[antiflood]:-5:3}"; fi
+	((${#trigger})) || trigger="${config[antiflood]:-5:3}"
 
 	# existing user
 	if ((${#antiflood["$key"]})); then
@@ -91,7 +91,7 @@ is_option() {
 	local option="$1" o match=()
 	shift
 	for o in $@; do
-		[[ ${o,,} = ^"${option,,}" ]] && match+=("$o")
+		[[ ${o,,} =~ ^"${option,,}" ]] && match+=("$o")
 	done
 	if ((${#match[@]})); then printf '%s\n' "${match[@]}"
 	else return 1
