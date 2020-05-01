@@ -23,9 +23,10 @@ _ircart() {
 		fname=${line[$item]}
 	fi
 
-	((${#fname})) || e=__random__
+	((${#fname})) || fname=__random__
+
 	if [[ $fname = __random__ ]]; then
-		arts=( $mydir/ircart/** )
+		arts=( "$mydir/ircart/"** )
 	else
 		if [[ $path ]]; then
 			mapfile -t arts < <(find "$mydir/ircart/$path" -type f -iname "*$fname*")
