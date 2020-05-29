@@ -370,7 +370,7 @@ tinyirc() {
 			esac
 
 			## load user modules
-			if ((${config[modules]:-0})); then
+			if ((${config[modules]:-1})); then
 				{
 				for mod in ${modules[${line[1]}]}; do
 					[[ $mod && -f $mydir/modules/${mod}.module ]] && source "$mydir/modules/${mod}.module"
