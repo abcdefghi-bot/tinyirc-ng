@@ -3,10 +3,11 @@
 #IFS=! read -r nick _ <<<"${line[0]/:/}"
 
 _mod_autoop() {
-	local modes= args=()
+	local modes= args=() nick
 	local host=${line/:/}; host=${host,,}
 	local chan=${line[2]}
 	[[ $chan = :* ]] && chan=${chan/:/}
+	IFS=$':!' read -r _ nick _ <<<"$line"
 
 	if has_access "${host}" 0; then
 		modes+=q
