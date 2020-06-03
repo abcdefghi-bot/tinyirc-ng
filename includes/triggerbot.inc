@@ -8,7 +8,7 @@ if ((!${#triggers_enabled[@]})); then
 		path="${path%%.*}"
 		triggers_enabled+=("$path")
 	done
-declare -p triggers_enabled
+	declare -p triggers_enabled
 fi
 
 triggerbot() {
