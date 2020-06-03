@@ -331,11 +331,12 @@ tinyirc() {
 				;;
 				PRIVMSG)
 					if [[ ${config[antiflood]:-nil} = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
-						 isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
+						isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
+						continue
 					fi
 					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
-					if [[ ${line[3]} = ":${config[trigger]:-.}"* ]]; then
-						triggerbot "${line[@]:4}"
+					if [[ ${line[3]:1:1} = ${config[trigger]:-.} ]]; then
+						triggerbot "${line[@]:3}"
 					fi
 				;;
 				NOTICE)
@@ -349,7 +350,11 @@ tinyirc() {
 						printf 'NICK %s\n' "${config[nick]}" >&3
 					fi
 				;;
-
+				INVITE)
+					if has_access "${line/:/}" 0 || [[ ${config[autojoin]:-false} = @(Y|y|T|t|1)* ]]; then
+						join "${line[3]}" >&3
+					fi
+				;;
 				NICK)
 					newnick="${line[2]/:/}"
 					if [[ ${nick/:/} = "$mynick" ]]; then
