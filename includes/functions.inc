@@ -15,12 +15,19 @@ file_get_contents() {
 	curl ${args[@]} "$1"
 }
 
+get_url_contenttype() {
+	curl -sLI "$1" | grep -i "Content-Type:" | awk '{print $2}'
+}
+
 get_url_title() {
-	local content filetype regex='<title>(.|\n)*</title>'	REPLY i
-	filetype=$(get_url_contenttype "$1")
-	[[ ${filetype,,} = *text* ]] || return
-	local match
-	match=$(file_get_contents "$1" | egrep -io "<title>(.|\n)*</title>" | sed -r 's#<?title>##I' | html2text -nobs -ascii | tr '\r\n' ' ' | sed 's/^  */ /g;s/  *$/ /g;s/  */ /g')
+	uri=$1
+	if [[ $uri = *@(www\.youtube\.com|youtube\.com|youtu\.be)/* ]]; then
+		IFS=$'"' read -r _ _ _ match _ < <(file_get_contents "$uri" | egrep -io '<meta name="title" content=".*')
+	else
+		filetype=$(get_url_contenttype "$1")
+		[[ ${filetype,,} = *text* ]] || return
+		match=$(file_get_contents "$uri" | egrep -io "<title>(.|\n)*</title>" | sed -r 's#<?title>##I' | html2text -nobs -ascii | tr '\r\n' ' ' | sed 's/^  */ /g;s/  *$/ /g;s/  */ /g')
+	fi
 	((${#match})) && printf '%s\n' "$match"
 	return
 }
