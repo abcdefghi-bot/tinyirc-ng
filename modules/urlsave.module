@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 _urlsave() {
-	if [[ -e $mydir/data/urls.db ]]; then source "$mydir/data/urls.db"
+	if [[ -e $mydir/data/urls.${config[server]}.db ]]; then source "$mydir/data/urls.${config[server]}.db"
 	else declare -A urls=()
 	fi
 
-	local ticks nickname network chan i
+	local ticks nickname network chan i title rchan=${line[2]} change
 	local text="${line[*]:3}"; text=( ${text/:/} )
 
 	read -r ticks < <(date -u +%s)
@@ -14,11 +14,24 @@ _urlsave() {
 	read -r chan _ < <(shasum <<<"${line[2]}")
 	local change=0
 	for i in "${text[@]}"; do
-		[[ ${i,,} =~ ^[a-z]{3,}:// && ! ${urls[$i]} ]] || continue
-		urls[$i]="$ticks $network $chan $nickname"
+		[[ ${i,,} =~ ^[a-z]{3,}:// ]] || continue
+
+		if ((${#urls[$i]})); then
+			read -r ticks network chan nickname title <<<"${urls[$i]}"
+			(( $(( $(date +%s) - ticks )) < 300 )) && continue
+		else
+			read -r title < <(get_url_title "$i")
+			if ((${#title})); then
+				read -ra title < <(html2text -nobs -ascii <<<"$title" | tr '\r\n' ' ')
+				title="${title[*]}"
+			else
+				title=ENOTITLE
+			fi
+		fi
+		urls[$i]="$ticks $network $chan $nickname $title"
+		privmsg "$rchan" "^ ${title}" >&3
 		change=1
 	done
-	((change)) && declare -p urls > "$mydir/data/urls.db"
+	((change)) && declare -p urls > "$mydir/data/urls.${config[server]}.db"
 }
-
 _urlsave
