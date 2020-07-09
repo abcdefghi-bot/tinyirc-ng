@@ -10,6 +10,7 @@ version="${version:0:7}"
 declare -A config
 config[mydir]=$mydir
 declare -A nicklist oplist holist volist
+
 usage() {
 	cat << EOF
 
@@ -336,7 +337,7 @@ tinyirc() {
 					fi
 					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
 					if [[ ${line[3]:1:1} = ${config[trigger]:-.} ]]; then
-						triggerbot "${line[@]:3}"
+						((${config[triggerbot]:-0})) && triggerbot "${line[@]:3}"
 					fi
 				;;
 				NOTICE)
