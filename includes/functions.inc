@@ -25,16 +25,20 @@ get_url_title() {
 		IFS=$'"' read -r _ _ _ match _ < <(file_get_contents "$uri" | egrep -io '<meta name="title" content=".*')
 	elif [[ "$uri" = *://@(twitter\.com|mobile\.twitter\.com)/* ]]; then
 		[[ "$uri" = *://twitter.com/* ]] && uri="${uri/twitter.com/mobile.twitter.com}"
-		read -r match < <(file_get_contents "$uri" | grep -i '<div class="dir-ltr" dir="ltr">' | head -1 | html2text -nobs -ascii | tr '\r\n' ' ')
+		mapfile -t match < <(file_get_contents "$uri" | grep -i '<div class="dir-ltr" dir="ltr">' | head -1)
+		match="${match[*]}"
 	else
 		filetype=$(get_url_contenttype "$1")
 		if [[ ${filetype,,} = *text* ]]; then
-			match=$(file_get_contents "$uri" | tr '\r\n' ' ' | egrep -io "<title>(.|\n)*</title>" | sed -r 's#<?title>##I' | html2text -nobs -ascii | tr '\r\n' ' ' | sed 's/^  */ /g;s/  *$/ /g;s/  */ /g')
+			IFS=$'<>' read -r _ _ match _ < <(file_get_contents "$uri" | tr '\r\n' ' ' | egrep -io '<title.*>.*</title>')
 		else
 			match=$filetype
 		fi
 	fi
-	((${#match})) && printf '%s\n' "$match"
+	if ((${#match})); then
+		mapfile -t mmatch < <(iconv -t utf-8 <<<"$match" | pandoc -t plain)
+		printf '%s\n' "${mmatch[*]}"
+	fi
 	return
 }
 
