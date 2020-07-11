@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
-privmsg() { printf 'PRIVMSG %s :%s\n' "$1" "$2"; }
+privmsg() {
+	local data=":${mynick}@${myhost} PRIVMSG $1 :$2"
+	((${#data} > 500)) && data="${data:0:500}…"
+	read -r _ data <<<"$data"
+	printf '%s\r\n' "$data"
+}
+
 action() { printf 'PRIVMSG %s :%bACTION %s%b\n' "$1" '\x01' "$2" '\x01'; }
 ctcp() { printf 'PRIVMSG %s %bACTION :%s%b\n' "$1" '\x01' "$2" '\x01'; }
 

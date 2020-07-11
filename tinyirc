@@ -32,11 +32,10 @@ _exit() {
 }
 
 _irc_login() {
-	[[ ${config[ident]} ]] || config[ident]=${config[nick]}
 	# send server password if any
 	[[ ${config[password]:-nil} = nil ]] || printf 'PASS %s\n' "${config[password]}"
 	## send user/nick infos
-	printf 'NICK %s\nUSER %s %s localhost :%s\n' "$1" "${config[ident]}" "${config[server]}" "${config[nick]}"
+	printf 'NICK %s\nUSER %s localhost %s :%s\n' "$1" "${config[ident]:-$1}" "${config[server]}" "${config[nick]:-$1}"
 }
 
 _connect() {
@@ -243,6 +242,7 @@ tinyirc() {
 					[[ $chan = :* ]] && chan=${chan/:/}
 					delete_from_lists "$nick" "$chan"
 				;;
+				396)	declare -g myhost=${line[3]};;
 				353)
 					read -r _ _ _ _ chan _ <<<"$REPLY"
 					nicks=(${REPLY##*:})
