@@ -14,7 +14,7 @@ _urlsave() {
 		[[ ${i,,} =~ ^[a-z]{3,}:// ]] || continue
 
 		if ((${#urls[$i]})); then
-			(( $(( $(date +%s) - ${urls[$i]} )) < 300 )) && continue
+			(( $(( $(date +%s) - ${urls[$i]} )) < ${urlsave[timeout]:-300} )) && continue
 		fi
 
 		read -r title < <(get_url_title "$i")
