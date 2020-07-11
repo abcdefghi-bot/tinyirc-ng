@@ -5,8 +5,10 @@ _urlsave() {
 	else declare -A urls=()
 	fi
 
-	local ticks nickname network chan i title rchan=${line[2]} change
-	local text="${line[*]:3}"; text=( ${text/:/} )
+	local ticks chan=${line[2]} i title change text
+	text="${line[*]:3}"
+	read -ra text <<<"${text/:/}"
+	#local text="${line[*]:3}"; text=( ${text/:/} )
 
 	read -r ticks < <(date -u +%s)
 	local change=0
@@ -18,14 +20,9 @@ _urlsave() {
 		fi
 
 		read -r title < <(get_url_title "$i")
-		if ((${#title})); then
-			mapfile -t title < <(html2text -nobs <<<"$title") && title="${title[*]}"
-		else
-		 title=ENOTITLE
-		fi
-
+		((${#title})) || title='ENOTITLE'
 		urls[$i]=$ticks
-		privmsg "$rchan" "^ ${title}" >&3
+		privmsg "$chan" "^ ${title}" >&3
 		change=1
 	done
 	((change)) && declare -p urls > "$mydir/data/urls.${config[server]}.db"
