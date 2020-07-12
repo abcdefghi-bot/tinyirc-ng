@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+[[ -d $HOME/html ]] || mkdir -p "$HOME/html"
+touch "$HOME/html/links.html"
+touch "$mydir/data/urls.txt"
+
 _urlsave() {
 	if [[ -e $mydir/data/urls.${config[server]}.db ]]; then source "$mydir/data/urls.${config[server]}.db"
 	else declare -A urls=()
@@ -24,6 +28,23 @@ _urlsave() {
 		urls[$i]=$ticks
 		privmsg "$chan" "^ ${title}" >&3
 		change=1
+
+		#if ! grep -q "$i" "$HOME/html/links.html"; then
+		if ! grep -q "$i" "$mydir/data/urls.txt"; then
+			printf '%s %s %s %s\n' "${chan/#/}" "${config[server]}" "$i" "$title" >> "$mydir/data/urls.txt"
+
+			{
+			printf '<!DOCTYPE html><head><meta charset="UTF-8"><title>links...</title></head><body><small>\n'
+			while read -r chan server link title; do
+				printf '<p><a href="%s">%s</a>&nbsp;(ircs://%s/%s)</p>\n' \
+					"$link" \
+					"$title" \
+					"${config[server]}" \
+					"${chan/#/}"
+			done < "$mydir/data/urls.txt"
+			printf '</small></body></html>'
+			} > "$HOME/html/links.html"
+		fi
 	done
 	((change)) && declare -p urls > "$mydir/data/urls.${config[server]}.db"
 }
