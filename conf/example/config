@@ -1,10 +1,7 @@
-declare -A hecketer=(
-	[enabled]=1
-	[use_cobe]=1
-	[timeout]=90
-)
-
 declare -A config=(
+	[hecketer]=yes
+	[hecketer_timeout]=45
+	[use_cobe]=yes
 	[proxy]='socks5://127.0.0.1:9050'
 	[oper]='username:53cr37P4$$w0rd'
 	[mydir]="$mydir"

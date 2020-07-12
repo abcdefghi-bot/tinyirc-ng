@@ -475,7 +475,7 @@ cobe_rebuild() {
 }
 
 while :; do
-	((${hecketer[use_cobe]:-0})) && cobe_rebuild
+	((${config[use_cobe]:-0})) && cobe_rebuild
 	tinyirc
 	[[ ${config[infinite]} ]] || exit 0
 	sleep 5
