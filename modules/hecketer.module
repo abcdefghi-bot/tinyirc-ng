@@ -105,7 +105,7 @@ ask() {
 			local content i suri
 			read -r content < <(file_get_contents "https://www.answers.com/Q/${2// /_}" "$RANDOM" | tr '"' '\n' | grep '^\\u003Cp')
 			while read -r content; do
-				mapfile i < <(printf '%b\n' "${content//\\\//\/}" | html2text -nobs -ascii)
+				mapfile i < <(printf '%b\n' "${content//\\\//\/}" | iconv -t utf-8 | pandoc -t plain)
 				content="${i[*]}"; content="${content//$'\r'/}"; content="${content//$'\n'/}"
 				if [[ ! ${cobe[*]} = *"${content}"* ]]; then
 					read -r suri _ < <(shasum <<< "$content")
