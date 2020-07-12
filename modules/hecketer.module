@@ -218,11 +218,8 @@ hecketer() {
 	((${#answer})) && privmsg "${line[2]}" "${nick/:/}: $answer" >&3
 }
 
-if [[ "${config[hecketer]:-False}" =~ (T|t|Y|y|1) ]]; then
+if [[ "${config[hecketer]:-False}" = @(T|t|Y|y|1)* ]]; then
 	if [[ ${line[3]} = :"${mynick}"* && ! -z ${line[*]:4} || ${line[*]:4} = *"${mynick}"* ]]; then
-	{
-		((RANDOM>RANDOM)) && cobe_rebuild
-		 hecketer
-	}
+		hecketer
 	fi
 fi
