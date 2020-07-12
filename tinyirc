@@ -177,7 +177,7 @@ tinyirc() {
 		elif [[ $REPLY = :* ]]; then
 
 			# extract nick, ident and host
-			IFS=!@ read -r nick ident host <<<"${line/:/}"
+			IFS=$'!@' read -r nick ident host _ <<<"${REPLY/:/}"
 
 			# split line to array
 			read -ra line <<<"$REPLY"
@@ -331,8 +331,17 @@ tinyirc() {
 
 				;;
 				PRIVMSG)
+					# ignore server messages
+					[[ $nick = *\.* ]] && continue
+					chan=${line[2]/:/}
+					if [[ ! $chan = @(\#|\&)* ]]; then
+						[[ ${config[reply_in_private]:-0} = @(Y|y|T|t|1) ]] || continue
+						# hack for QUERY
+						line[3]="${config[trigger]:-.}${line[3]}"
+						chan=$nick
+					fi
 					if [[ ${config[antiflood]:-nil} = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
-						isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
+						[[ $chan = @(\#|\&)* ]] && isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
 						continue
 					fi
 					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
@@ -341,9 +350,15 @@ tinyirc() {
 					fi
 				;;
 				NOTICE)
+					# ignore server messages
+					[[ $nick = *\.* ]] && continue
+					chan=${line[2]/:/}
 					if [[ ${config[antiflood]:-nil} = *:* ]] && is_flood "${ident}@${host}" "$chan" "${config[antiflood]}"; then
-						 isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
+						[[ $chan = @(\#|\&)* ]] && isop "$mynick" "$chan" && kick "$chan" "$nick" "kthxbai" >&3
+						continue
 					fi
+					[[ ${line[*]:3} = *\#no@(log|op)* ]] && continue
+					# TODO:  admin plugin comes here
 				;;
 				QUIT)	# regain nick
 					delete_from_lists "$nick"
