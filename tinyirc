@@ -449,7 +449,7 @@ if [[ -n ${config[http_proxy]} ]]; then
 fi
 
 cobe_rebuild() {
-  [[ -f $mydir/tmp/cobe.lock ]] && return
+	[[ -f $mydir/tmp/cobe.lock ]] && return
 	touch "$mydir/tmp/cobe.lock"
 	local changed=0 s k
 	local files=( "$mydir"/cobe/tmp-*.*.* )
