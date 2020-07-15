@@ -20,10 +20,13 @@ get_url_contenttype() {
 }
 
 get_url_title() {
-	uri=$1
+	uri=$1 content= author=
 	if [[ "$uri" = *://@(www\.youtube\.com|youtube\.com|youtu\.be)/* ]]; then
-		IFS=$'"' read -r _ _ _ match _ < <(file_get_contents "$uri" | egrep -io '<meta name="title" content=".*')
-		read -ra match < <(pandoc -t plain <<<"$match")
+		mapfile -t content < <(file_get_contents "$uri" | egrep -io '<meta name=.*|<link itemprop=.*')
+		IFS=$'"' read -r _ _ _ match _ < <(printf '%s\n' "${content[@]}" | egrep -io '<meta name="title" content=".*')
+		IFS=$'"' read -r _ _ _ author _ < <(printf '%s\n' "${content[@]}" | egrep -io '<link itemprop="name" content=".*')
+		mapfile -t match < <(pandoc -t plain <<<"$match")
+		match+=("- ${author}")
 	elif [[ "$uri" = *://@(twitter\.com|mobile\.twitter\.com)/* ]]; then
 		[[ "$uri" = *://twitter.com/* ]] && uri="${uri/twitter.com/mobile.twitter.com}"
 		mapfile -t match < <(file_get_contents "$uri" | grep -i '<div class="dir-ltr" dir="ltr">' | head -1 | html2text -nobs)
@@ -32,15 +35,15 @@ get_url_title() {
 		if [[ ${filetype,,} = *text* ]]; then
 			IFS=$'<>' read -r _ _ match _ < <(file_get_contents "$uri" | tr '\r\n' ' ' | egrep -io '<title.*>.*</title>')
 		else
-			match=("$filetype")
+			match=$filetype
 		fi
 		mapfile -t match < <(iconv -cs -t utf-8 <<<"$match" | pandoc -t plain)
 	fi
 
-	((${#match})) || return
+	((${#match[@]})) || return
 	local mmatch ijk
 
-	mapfile -t mmatch < <(pandoc -t plain <<< "${match[*]}" 2>/dev/null) || mmatch=("${match[@]}")
+	mapfile -t mmatch < <(pandoc -t plain <<< "${match[@]}" 2>/dev/null) || mmatch=("${match[@]}")
 	read -r ijk < <(file - <<<"${mmatch[*]}")
 	if [[ $ijk = *Non-ISO\ extended-ASCII\ text* ]]; then
 		printf '%q\n' "${mmatch[*]}"
