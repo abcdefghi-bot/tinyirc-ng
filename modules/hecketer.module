@@ -47,21 +47,21 @@ ask() {
 		reddit)
 			local encoded uris uri i; read -r encoded < <(urlencode "$search")
 			local has_changed=0
-			mapfile uris < <(file_get_contents "https://www.reddit.com/search/?q=${encoded}" | tr '"' '\n' | grep '/comments/')
+			mapfile -t uris < <(file_get_contents "https://www.reddit.com/search/?q=${encoded}" | tr '"' '\n' | grep '/comments/')
 			((${#uris[@]})) || return 0
 			declare -A known toread
 			declare content echoed=0 backup=()
-
 			while ((${#uris[@]})); do
 				i=$(( RANDOM % ${#uris[@]} ))
 				uri="${uris[$i]}"; uri="${uri/$'\n'/}"
 				[[ $uri = *://* ]] || uri="https://www.reddit.com${uri}"
 				if [[ ! ${known["$uri"]} ]]; then
 					known[$uri]=1
-					read -r suri _ < <(shasum <<<"$uri")
+					#read -r suri _ < <(shasum <<<"$uri")
+					read -r suri _ < <(md5 <<<"$uri")
 					suri="reddit${suri}reddit"
 					if [[ -v cobe[$suri] ]]; then
-						((${#cobe[$suri]})) && backup+=("${cobe[$suri]}")
+						printf '%s\n' "${cobe[$suri]}"
 
 					elif [[ ! $uri = *Ouija* ]] && [[ $uri = https://www.reddit.com* ]]; then
 						toread[$suri]=$uri
@@ -69,17 +69,17 @@ ask() {
 				fi
 				unset -v 'uris[i]'; uris=( "${uris[@]}" )
 			done
-
 			local reply=()
+			declare -A known
 			while ((${#toread[@]})); do
-				read -ra keys <<<"${!toread[@]}"
+				keys=("${!toread[@]}")
 				suri="${keys[ $((RANDOM%${#toread[@]}))]}"
 				uri="${toread[$suri]}"
 				unset -v toread[$suri]
 				newcobe["$suri"]=""
 
 				#echo "fetching '$suri' ($uri)" >&2
-				mapfile content < <(file_get_contents "$uri" "$RANDOM")
+				mapfile -t content < <(file_get_contents "$uri" "$RANDOM")
 
 				if [[ ${content[*]} =~ \"t\":\"[[:blank:]|[:alnum:]|[:punct:]]+\"}\], ]]; then
 					reply=()
@@ -87,26 +87,26 @@ ask() {
 						IFS="\"" read -r _ _ _ r _ <<<"${BASH_REMATCH[x]}"
 						reply+=("$r")
 					done
-					read -r reply < <(printf '%b' "${reply[*]}")
-					if [[ $reply =~ [.?!]$ && ${#reply} -lt 300 ]]; then
-						newcobe["${suri}"]="$reply"
-						printf '%s\n' "$reply"
-						echoed=1
-						((RANDOM<RANDOM)) && break
-					fi
+					read -r reply < <(printf '%b\n' "${reply[*]}")
+					[[ ${known[x${reply}x]} ]] && continue
+					known[x${reply}x]=1
+					((${#reply}>10)) || continue
+					newcobe["${suri}"]="$reply"
+					printf '%s\n' "$reply"
+					echoed=1
+					((RANDOM<RANDOM && RANDOM>RANDOM)) && break
 				fi
 				(( $(( $(date +%s) - ticks )) >= "${config[hecketer_timeout]:-30}")) && break
 			done
 			((${#newcobe[@]})) && declare -p newcobe > "$mydir/cobe/tmp-reddit.$(date +%s).${RANDOM}${RANDOM}"
-			((echoed)) || printf '%s\n' "${backup[@]}"
 		;;
 
 		answers)
 			local content i suri
 			read -r content < <(file_get_contents "https://www.answers.com/Q/${2// /_}" "$RANDOM" | tr '"' '\n' | grep '^\\u003Cp')
 			while read -r content; do
-				mapfile i < <(printf '%b\n' "${content//\\\//\/}" | iconv -t utf-8 | pandoc -t plain)
-				content="${i[*]}"; content="${content//$'\r'/}"; content="${content//$'\n'/}"
+				mapfile -t i < <(printf '%b\n' "${content//\\\//\/}" | iconv -t utf-8 | pandoc -t plain)
+				content="${i[*]}" #; content="${content//$'\r'/}"; content="${content//$'\n'/}"
 				if [[ ! ${cobe[*]} = *"${content}"* ]]; then
 					read -r suri _ < <(shasum <<< "$content")
 					suri="answer$surianswer"
@@ -198,7 +198,7 @@ hecketer() {
 
 				read -r answer < <(printf '%s\n' "$q" | cobe -b "$tmpfile" console 2> /dev/null | grep -i '^> [a-z]' | sed 's/^..//')
 
-				((${#answer} && ${#answer} < 384)) || continue
+				#((${#answer} && ${#answer} < 384)) || continue
 				[[ $answer = "$1" ]] && continue
 				#action "${line[2]}" '.oO( ... thinks ... )' >&3
 				printf '%s\n' "$answer"
@@ -220,6 +220,7 @@ hecketer() {
 
 if [[ "${config[hecketer]:-False}" = @(T|t|Y|y|1)* ]]; then
 	if [[ ${line[3]} = :"${mynick}"* && ! -z ${line[*]:4} || ${line[*]:4} = *"${mynick}"* ]]; then
+		cobe_rebuild
 		hecketer
 	fi
 fi
