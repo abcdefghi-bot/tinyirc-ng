@@ -448,34 +448,7 @@ if [[ -n ${config[http_proxy]} ]]; then
 	export SSH_PROXY="${config[http_proxy]}"
 fi
 
-cobe_rebuild() {
-	[[ -f $mydir/tmp/cobe.lock ]] && return
-	touch "$mydir/tmp/cobe.lock"
-	local changed=0 s k
-	local files=( "$mydir"/cobe/tmp-*.*.* )
-	if ((${#files[@]} >= 2)); then
-		[[ -f $mydir/cobe/cobe.learn ]] && source "$mydir/cobe/cobe.learn"
-		[[ -v cobe ]] || declare -gA cobe
-
-		for s in "${files[@]}"; do
-			[[ -f $s ]] || continue
-
-			source "$s" && rm -v "$s"
-			for k in "${!newcobe[@]}"; do
-				if [[ ! ${cobe[$k]} ]]; then
-					cobe["$k"]="${newcobe[$k]}"
-					((changed++))
-				fi
-			done
-		done
-		((changed)) && declare -p cobe > "$mydir/cobe/cobe.learn"
-		echo ">>> ${#cobe[@]} item(s) in memory (+${changed})" >&2
-	fi
-	rm -f "$mydir/tmp/cobe.lock"
-}
-
 while :; do
-	((${config[use_cobe]:-0})) && cobe_rebuild
 	tinyirc
 	[[ ${config[infinite]} ]] || exit 0
 	sleep 5
