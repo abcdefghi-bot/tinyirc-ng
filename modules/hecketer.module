@@ -20,23 +20,11 @@ translate() {
 
 is_math_question() {
 	[[ $3 =~ [0-9\(\)\ \+/\*^%^-]{3,} ]] || return 1
-	local choices=(
-		around
-		perhaps
-		maybe
-		"i'd say"
-		"is it"
-		"what about"
-		"my maths-fu says"
-		"not less than"
-	)
-	local math_response; read -r math_response < <(printf 'scale=4;%s\n' "${BASH_REMATCH[x]}" | bc)
-	#[[ $math_response =~ [0-9]\.0+ ]] && math_response="${math_response%%.*}"
-	if ((${#math_response})); then
-		printf '%s %s ?\n' "${choices[$((RANDOM%${#choices[@]}))]}" "${math_response}"
-	else
-		return 1
-	fi
+	local choices=(around perhaps maybe "i'd say" "is it" "what about" "my maths-fu says" "not less than")
+	#local math_response; read -r math_response < <(printf 'scale=4;%s\n' "${BASH_REMATCH[x]}" | bc)
+	local math_response; math_response=$(bc <<<"scale=4;${BASH_REMATCH[x]}")
+	((${#math_response})) || return 1
+	printf '%s %s ?\n' "${choices[$((RANDOM%${#choices[@]}))]}" "${math_response}"
 }
 
 ask() {
@@ -45,12 +33,12 @@ ask() {
 
 	case "$1" in
 		reddit)
-			local encoded uris uri i; read -r encoded < <(urlencode "$search")
-			local has_changed=0
+			local encoded uris
+			read -r encoded < <(urlencode "$search")
 			mapfile -t uris < <(file_get_contents "https://www.reddit.com/search/?q=${encoded}" | tr '"' '\n' | grep '/comments/')
 			((${#uris[@]})) || return 0
 			declare -A known toread
-			declare content echoed=0 backup=()
+			local content uri i echoed=0 has_changed=0 reply=()
 			while ((${#uris[@]})); do
 				i=$(( RANDOM % ${#uris[@]} ))
 				uri="${uris[$i]}"; uri="${uri/$'\n'/}"
@@ -69,9 +57,10 @@ ask() {
 				fi
 				unset -v 'uris[i]'; uris=( "${uris[@]}" )
 			done
-			local reply=()
-			declare -A known
+
 			while ((${#toread[@]})); do
+				(( $(( $(date +%s) - ticks )) >= "${config[hecketer_timeout]:-30}")) && break
+
 				keys=("${!toread[@]}")
 				suri="${keys[ $((RANDOM%${#toread[@]}))]}"
 				uri="${toread[$suri]}"
@@ -96,7 +85,6 @@ ask() {
 					echoed=1
 					((RANDOM<RANDOM && RANDOM>RANDOM)) && break
 				fi
-				(( $(( $(date +%s) - ticks )) >= "${config[hecketer_timeout]:-30}")) && break
 			done
 			((${#newcobe[@]})) && declare -p newcobe > "$mydir/cobe/tmp-reddit.$(date +%s).${RANDOM}${RANDOM}"
 		;;
@@ -106,7 +94,7 @@ ask() {
 			read -r content < <(file_get_contents "https://www.answers.com/Q/${2// /_}" "$RANDOM" | tr '"' '\n' | grep '^\\u003Cp')
 			while read -r content; do
 				mapfile -t i < <(printf '%b\n' "${content//\\\//\/}" | iconv -t utf-8 | pandoc -t plain)
-				content="${i[*]}" #; content="${content//$'\r'/}"; content="${content//$'\n'/}"
+				content="${i[*]}"
 				if [[ ! ${cobe[*]} = *"${content}"* ]]; then
 					read -r suri _ < <(shasum <<< "$content")
 					suri="answer$surianswer"
@@ -207,8 +195,9 @@ hecketer() {
 			[[ -e $tmpfile ]] && rm -f "$tmpfile"*
 		)
 	fi
-	## send a reply if we got something to send
-	#((${#answer})) || return
+
+	## return if we do not have anything to sed
+	((${#answer})) || return
 
 	if [[ ${config[translate]:-0} -gt 0 && ${config[lang]} != en ]]; then
 		read -r translation < <(translate "en:${config[lang]}" "$answer")
