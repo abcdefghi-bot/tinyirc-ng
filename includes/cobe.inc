@@ -6,9 +6,9 @@ cobe_rebuild() {
 	local files=( "$mydir"/cobe/tmp-*.*.* )
 	((${#files[@]} >= 2)) || return
 
-	local changed=0 s= k=
+	local changed=0 s='' k=''
 	if [[ -f $mydir/cobe/cobe.learn ]]; then source "$mydir/cobe/cobe.learn"
-	else [[ -v cobe ]] || declare -gA cobe
+	else declare -A cobe
 	fi
 
 	for s in "${files[@]}"; do
@@ -22,7 +22,9 @@ cobe_rebuild() {
 			fi
 		done
 	done
-	((changed)) && declare -p cobe > "$mydir/cobe/cobe.learn"
-	echo ">>> ${#cobe[@]} item(s) in memory (+${changed})" >&2
+	if ((changed)); then
+		declare -p cobe > "$mydir/cobe/cobe.learn"
+		printf '>>> %d item(s) in memory (+%d)' "{#cobe[@]}" "${changed}" >&2
+	fi
 	rm -f "$mydir/tmp/cobe.lock"
 }
