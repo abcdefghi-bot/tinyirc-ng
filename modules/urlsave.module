@@ -4,6 +4,10 @@
 touch "$HOME/html/links.html"
 touch "$mydir/data/urls.txt"
 
+create_header() {
+	printf '<!DOCTYPE html><head><meta charset="UTF-8"><title>links...</title></head><body><small>\n' > "$1"
+}
+
 _urlsave() {
 	if [[ -e $mydir/data/urls.${config[server]}.db ]]; then source "$mydir/data/urls.${config[server]}.db"
 	else declare -A urls=()
@@ -27,25 +31,27 @@ _urlsave() {
 		((${#title})) || title='ENOTITLE'
 		urls[$i]=$ticks
 		privmsg "$chan" "^ ${title}" >&3
+		grep -q "$i" "$mydir/data/urls.txt" && continue
+		printf '%s %s %s %s\n' "${chan/#/}" "${config[server]}" "$i" "$title" >> "$mydir/data/urls.txt"
 		change=1
-
-		#if ! grep -q "$i" "$HOME/html/links.html"; then
-		if ! grep -q "$i" "$mydir/data/urls.txt"; then
-			printf '%s %s %s %s\n' "${chan/#/}" "${config[server]}" "$i" "$title" >> "$mydir/data/urls.txt"
-
-			{
-			printf '<!DOCTYPE html><head><meta charset="UTF-8"><title>links...</title></head><body><small>\n'
-			while read -r chan server link title; do
-				printf '<p><a href="%s">%s</a>&nbsp;(ircs://%s/%s)</p>\n' \
-					"$link" \
-					"$title" \
-					"${config[server]}" \
-					"${chan/#/}"
-			done < "$mydir/data/urls.txt"
-			printf '</small></body></html>'
-			} > "$HOME/html/links.html"
-		fi
 	done
-	((change)) && declare -p urls > "$mydir/data/urls.${config[server]}.db"
+	((change)) || return
+	declare -p urls > "$mydir/data/urls.${config[server]}.db"
+	{
+	printf '<!DOCTYPE html><head><meta charset="UTF-8"><title>links...</title></head><body>\n'
+	while read -r chan server link title; do
+		read -r chan < <(md5 <<<"$chan")
+		read -r server < <(md5 <<<"$server")
+		[[ -f $HOME/html/${chan}.html ]] || create_header "$HOME/html/${chan}.html"
+		[[ -f $HOME/html/${server}.html ]] || create_header "$HOME/html/${server}.html"
+
+		printf '<p><a href="%s">%s</a><br /><small><a href="%s.html">%s</a>@<a href="%s.html">%s</a></small></p>\n' \
+			"$link" \
+			"$title" \
+			"$chan" "$chan" \
+			"$server" "$server" | tee -a "$HOME/html/${chan}.html" "$HOME/html/${server}.html"
+	done < "$mydir/data/urls.txt"
+	printf '</body></html>'
+	} > "$HOME/html/links.html"
 }
 _urlsave
